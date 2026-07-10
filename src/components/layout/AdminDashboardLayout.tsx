@@ -14,30 +14,30 @@ const navSections = [
   {
     label: 'Banking',
     items: [
-      { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-      { label: 'Customers', href: '/admin/customers', icon: Users },
-      { label: 'Accounts', href: '/admin/accounts', icon: Wallet },
-      { label: 'Transactions', href: '/admin/transactions', icon: ArrowLeftRight },
-      { label: 'Statements', href: '/admin/statements', icon: FileText },
-      { label: 'Cards', href: '/admin/cards', icon: CreditCard },
+      { label: 'Dashboard', href: '/admin-giver/dashboard', icon: LayoutDashboard },
+      { label: 'Customers', href: '/admin-giver/dashboard/customers', icon: Users },
+      { label: 'Accounts', href: '/admin-giver/dashboard/accounts', icon: Wallet },
+      { label: 'Transactions', href: '/admin-giver/dashboard/transactions', icon: ArrowLeftRight },
+      { label: 'Statements', href: '/admin-giver/dashboard/statements', icon: FileText },
+      { label: 'Cards', href: '/admin-giver/dashboard/cards', icon: CreditCard },
     ],
   },
   {
     label: 'Content',
     items: [
-      { label: 'Website CMS', href: '/admin/cms', icon: Database },
-      { label: 'Media Library', href: '/admin/media', icon: Image },
-      { label: 'Theme', href: '/admin/theme', icon: Palette },
+      { label: 'Website CMS', href: '/admin-giver/dashboard/cms', icon: Database },
+      { label: 'Media Library', href: '/admin-giver/dashboard/media', icon: Image },
+      { label: 'Theme', href: '/admin-giver/dashboard/theme', icon: Palette },
     ],
   },
   {
     label: 'System',
     items: [
-      { label: 'Notifications', href: '/admin/notifications', icon: Bell },
-      { label: 'Reports', href: '/admin/reports', icon: BarChart3 },
-      { label: 'Settings', href: '/admin/settings', icon: Settings },
-      { label: 'Audit Logs', href: '/admin/audit-logs', icon: ScrollText },
-      { label: 'Roles', href: '/admin/roles', icon: ShieldCheck },
+      { label: 'Notifications', href: '/admin-giver/dashboard/notifications', icon: Bell },
+      { label: 'Reports', href: '/admin-giver/dashboard/reports', icon: BarChart3 },
+      { label: 'Settings', href: '/admin-giver/dashboard/settings', icon: Settings },
+      { label: 'Audit Logs', href: '/admin-giver/dashboard/audit-logs', icon: ScrollText },
+      { label: 'Roles', href: '/admin-giver/dashboard/roles', icon: ShieldCheck },
     ],
   },
 ];
@@ -183,7 +183,7 @@ export function AdminDashboardLayout() {
                         <p className="text-sm font-semibold text-primary-900 dark:text-white">{user?.firstName} {user?.lastName}</p>
                         <p className="text-xs text-secondary-400">{user?.email}</p>
                       </div>
-                      <Link to="/admin/settings" className="block px-3 py-2 text-sm rounded-lg text-secondary-700 dark:text-secondary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30">Settings</Link>
+                      <Link to="/admin-giver/dashboard/settings" className="block px-3 py-2 text-sm rounded-lg text-secondary-700 dark:text-secondary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30">Settings</Link>
                       <button onClick={handleLogout} className="w-full text-left px-3 py-2 text-sm rounded-lg text-error-600 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-500/10">Sign Out</button>
                     </motion.div>
                   )}

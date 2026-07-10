@@ -112,8 +112,8 @@ export function Navbar() {
               <LinkButton to="/login" variant="ghost" size="sm">
                 <ShieldCheck className="w-4 h-4" /> Customer Login
               </LinkButton>
-              <LinkButton to="/admin/login" variant="primary" size="sm">
-                Admin Portal
+              <LinkButton to="/open-account" variant="primary" size="sm">
+                Open Account
               </LinkButton>
             </div>
             <button
@@ -168,8 +168,8 @@ export function Navbar() {
                   <LinkButton to="/login" variant="outline" size="sm" className="w-full">
                     Customer Login
                   </LinkButton>
-                  <LinkButton to="/admin/login" variant="primary" size="sm" className="w-full">
-                    Admin Portal
+                  <LinkButton to="/open-account" variant="primary" size="sm" className="w-full">
+                    Open Account
                   </LinkButton>
                   <div className="flex items-center gap-2 px-4 py-2 text-sm text-secondary-500 dark:text-secondary-400">
                     <Phone className="w-4 h-4" />

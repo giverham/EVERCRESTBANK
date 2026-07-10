@@ -42,10 +42,10 @@ const systemStatus = [
 ];
 
 const quickActions = [
-  { label: 'Add Customer', icon: UserPlus, href: '/admin/customers' },
-  { label: 'View Reports', icon: FileText, href: '/admin/reports' },
-  { label: 'Send Notification', icon: Bell, href: '/admin/notifications' },
-  { label: 'Audit Logs', icon: Eye, href: '/admin/audit-logs' },
+  { label: 'Add Customer', icon: UserPlus, href: '/admin-giver/dashboard/customers' },
+  { label: 'View Reports', icon: FileText, href: '/admin-giver/dashboard/reports' },
+  { label: 'Send Notification', icon: Bell, href: '/admin-giver/dashboard/notifications' },
+  { label: 'Audit Logs', icon: Eye, href: '/admin-giver/dashboard/audit-logs' },
 ];
 
 export function AdminDashboardHome() {
@@ -160,7 +160,7 @@ export function AdminDashboardHome() {
                 </Link>
               ))}
             </div>
-            <LinkButton to="/admin/reports" variant="accent" size="md" className="w-full mt-4">
+            <LinkButton to="/admin-giver/dashboard/reports" variant="accent" size="md" className="w-full mt-4">
               View Full Reports <ArrowRight className="w-4 h-4" />
             </LinkButton>
           </Card>

@@ -46,10 +46,10 @@ export function AdminPlaceholderPage({ title }: AdminPlaceholderPageProps) {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <LinkButton to="/admin" variant="primary" size="md">
+            <LinkButton to="/admin-giver/dashboard" variant="primary" size="md">
               <ArrowLeft className="w-4 h-4" /> Back to Dashboard
             </LinkButton>
-            <LinkButton to="/admin/settings" variant="outline" size="md">
+            <LinkButton to="/admin-giver/dashboard/settings" variant="outline" size="md">
               View Settings
             </LinkButton>
           </div>

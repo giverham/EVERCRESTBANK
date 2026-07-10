@@ -21,6 +21,7 @@ import { ContactPage } from './pages/public/ContactPage';
 import { FAQPage } from './pages/public/FAQPage';
 import { PrivacyPolicyPage } from './pages/public/PrivacyPolicyPage';
 import { TermsPage } from './pages/public/TermsPage';
+import { OpenAccountPage } from './pages/public/OpenAccountPage';
 
 // Auth pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -63,10 +64,11 @@ const router = createBrowserRouter([
       { path: '/faq', element: <FAQPage /> },
       { path: '/privacy-policy', element: <PrivacyPolicyPage /> },
       { path: '/terms', element: <TermsPage /> },
+      { path: '/open-account', element: <OpenAccountPage /> },
     ],
   },
   { path: '/login', element: <LoginPage /> },
-  { path: '/admin/login', element: <AdminLoginPage /> },
+  { path: '/admin-giver', element: <AdminLoginPage /> },
   {
     path: '/dashboard',
     element: (
@@ -86,7 +88,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    path: '/admin',
+    path: '/admin-giver/dashboard',
     element: (
       <ProtectedRoute allowedRole="admin">
         <AdminDashboardLayout />

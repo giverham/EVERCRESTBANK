@@ -33,7 +33,6 @@ export function LoginPage() {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { email: 'customer@evercrestbank.com', password: 'demo1234' },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -102,7 +101,7 @@ export function LoginPage() {
             <Input
               label="Email Address"
               type="email"
-              placeholder="you@example.com"
+              placeholder="Enter your email address"
               icon={<Mail className="w-5 h-5" />}
               error={errors.email?.message}
               {...register('email')}
@@ -141,24 +140,12 @@ export function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 p-4 rounded-xl bg-accent-50 dark:bg-accent-500/10 border border-accent-200 dark:border-accent-500/20">
-            <p className="text-xs text-accent-700 dark:text-accent-300 font-medium mb-1">Demo Credentials</p>
-            <p className="text-xs text-secondary-600 dark:text-secondary-400">Email: customer@evercrestbank.com</p>
-            <p className="text-xs text-secondary-600 dark:text-secondary-400">Password: demo1234</p>
-          </div>
-
           <p className="mt-6 text-center text-sm text-secondary-500 dark:text-secondary-400">
             Don't have an account?{' '}
             <Link to="/contact" className="text-accent-600 dark:text-accent-400 font-semibold hover:underline">
               Contact us
             </Link>
           </p>
-
-          <div className="mt-6 text-center">
-            <LinkButton to="/admin/login" variant="ghost" size="sm">
-              Admin Portal Login →
-            </LinkButton>
-          </div>
         </motion.div>
       </div>
     </div>

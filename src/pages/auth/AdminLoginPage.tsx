@@ -25,7 +25,7 @@ export function AdminLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/admin';
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/admin-giver/dashboard';
 
   const {
     register,
@@ -33,7 +33,6 @@ export function AdminLoginPage() {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { email: 'admin@evercrestbank.com', password: 'admin1234' },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -87,7 +86,7 @@ export function AdminLoginPage() {
               <Input
                 label="Admin Email"
                 type="email"
-                placeholder="admin@evercrestbank.com"
+                placeholder="Enter your email address"
                 icon={<Mail className="w-5 h-5" />}
                 error={errors.email?.message}
                 {...register('email')}
@@ -116,11 +115,7 @@ export function AdminLoginPage() {
               </Button>
             </form>
 
-            <div className="mt-5 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-700">
-              <p className="text-xs text-primary-700 dark:text-primary-300 font-medium mb-1">Admin Demo Credentials</p>
-              <p className="text-xs text-secondary-600 dark:text-secondary-400">Email: admin@evercrestbank.com</p>
-              <p className="text-xs text-secondary-600 dark:text-secondary-400">Password: admin1234</p>
-            </div>
+
           </div>
 
           <div className="mt-6 text-center">

@@ -24,11 +24,11 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={allowedRole === 'admin' ? '/admin/login' : '/login'} state={{ from: location }} replace />;
+    return <Navigate to={allowedRole === 'admin' ? '/admin-giver' : '/login'} state={{ from: location }} replace />;
   }
 
   if (user?.role !== allowedRole) {
-    return <Navigate to={user?.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+    return <Navigate to={user?.role === 'admin' ? '/admin-giver/dashboard' : '/dashboard'} replace />;
   }
 
   return <>{children}</>;
