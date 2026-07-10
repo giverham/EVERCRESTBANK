@@ -1,0 +1,6 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Redirect all traffic to the dist folder where the compiled Vite build lives
+  RewriteCond %{REQUEST_URI} !^/dist/
+  RewriteRule ^(.*)$ /dist/$1 [L]
+</IfModule>
