@@ -95,10 +95,10 @@ export function HomePage() {
             ))}
           </Card>
         </motion.div>
-      </section >
+      </section>
 
     {/* Featured Services */ }
-    < section className = "py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
+    <section className = "py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
         <SectionHeading
           eyebrow="Our Services"
           title="Banking Solutions for Every Need"
@@ -123,10 +123,10 @@ export function HomePage() {
             );
           })}
         </div>
-      </section >
+      </section>
 
     {/* Why Choose Us */ }
-    < section className = "py-20 bg-primary-900 dark:bg-primary-950" >
+    <section className = "py-20 bg-primary-900 dark:bg-primary-950" >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Why Evercrest"
@@ -150,10 +150,10 @@ export function HomePage() {
           })}
         </div>
       </div>
-      </section >
+      </section>
 
     {/* Financial Products CTA */ }
-    < section className = "py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
+    <section className = "py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <motion.div {...fadeUp}>
           <Card className="p-10 gradient-primary text-white h-full flex flex-col justify-between min-h-[320px]">
@@ -184,10 +184,10 @@ export function HomePage() {
           </Card>
         </motion.div>
       </div>
-      </section >
+      </section>
 
     {/* Security Section */ }
-    < section className = "py-20 bg-gradient-to-b from-secondary-100 to-secondary-50 dark:from-secondary-900 dark:to-secondary-950" >
+    <section className = "py-20 bg-gradient-to-b from-secondary-100 to-secondary-50 dark:from-secondary-900 dark:to-secondary-950" >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <motion.div {...fadeUp}>
@@ -231,10 +231,10 @@ export function HomePage() {
           </motion.div>
         </div>
       </div>
-      </section >
+      </section>
 
     {/* Testimonials */ }
-    < section className = "py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
+    <section className = "py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
         <SectionHeading
           eyebrow="Testimonials"
           title="What Our Customers Say"
@@ -264,10 +264,10 @@ export function HomePage() {
             </motion.div>
           ))}
         </div>
-      </section >
+      </section>
 
     {/* Latest News */ }
-    < section className = "py-20 bg-secondary-100 dark:bg-secondary-900/50" >
+    <section className = "py-20 bg-secondary-100 dark:bg-secondary-900/50" >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Newsroom"
@@ -294,10 +294,10 @@ export function HomePage() {
           ))}
         </div>
       </div>
-      </section >
+      </section>
 
     {/* Financial Education */ }
-    < section className = "py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
+    <section className = "py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" >
         <SectionHeading
           eyebrow="Financial Education"
           title="Learn. Grow. Thrive."
@@ -320,10 +320,10 @@ export function HomePage() {
             </motion.div>
           ))}
         </div>
-      </section >
+      </section>
 
     {/* FAQ */ }
-    < section className = "py-20 bg-secondary-100 dark:bg-secondary-900/50" >
+    <section className = "py-20 bg-secondary-100 dark:bg-secondary-900/50" >
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeading eyebrow="FAQ" title="Frequently Asked Questions" subtitle="Find answers to common questions about our services." />
         <div className="mt-10 space-y-3">
@@ -353,10 +353,10 @@ export function HomePage() {
           </LinkButton>
         </div>
       </div>
-      </section >
+      </section>
 
     {/* CTA */ }
-    < section className = "py-20" >
+    <section className = "py-20" >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div {...fadeUp}>
           <Card className="p-12 md:p-16 gradient-primary text-white text-center relative overflow-hidden">
@@ -379,7 +379,7 @@ export function HomePage() {
           </Card>
         </motion.div>
       </div>
-      </section >
+      </section>
     </>
   );
 }
