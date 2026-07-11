@@ -70,7 +70,7 @@ export function HomePage() {
               className="relative"
             >
               <img
-                src="/hero-banking.png"
+                src="/hero-banking.jpg"
                 alt="Digital banking dashboard illustration"
                 className="rounded-3xl shadow-premium w-full h-auto object-cover"
               />
@@ -221,7 +221,7 @@ export function HomePage() {
           </motion.div>
           <motion.div {...fadeUp} transition={{ delay: 0.1 }} className="relative">
             <img
-              src="/bank-vault.png"
+              src="/bank-vault.jpg"
               alt="Secure bank vault"
               className="rounded-3xl shadow-premium w-full h-[400px] object-cover"
             />
