@@ -8,7 +8,7 @@ import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff } from 'l
 import { useAuth } from '../../context/AuthContext';
 import { siteConfig } from '../../config/siteConfig';
 import { Input } from '../../components/ui/Input';
-import { Button, LinkButton } from '../../components/ui/Button';
+import { Button } from '../../components/ui/Button';
 
 const schema = z.object({
   email: z.string().email('Please enter a valid email address.'),

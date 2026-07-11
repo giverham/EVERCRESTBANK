@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Snowflake, Eye, AlertTriangle, Plus, CreditCard as CardIcon } from 'lucide-react';
+import { Snowflake, Eye, EyeOff, AlertTriangle, Plus, CreditCard as CardIcon } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { demoCards, formatCurrency } from '../../data/demoData';
+import { formatCurrency, type CardInfo } from '../../data/demoData';
+import { useSupabaseData } from '../../hooks/useSupabaseData';
+import { supabaseCustomer as supabase } from '../../lib/supabase';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -19,11 +21,27 @@ const variantStyles: Record<string, string> = {
 };
 
 export function CardsPage() {
-  const [cards, setCards] = useState(demoCards);
+  const { data: dbCards } = useSupabaseData<CardInfo>('cards');
+  const [cards, setCards] = useState<CardInfo[]>([]);
   const [showCvv, setShowCvv] = useState<Record<string, boolean>>({});
+  const [showDetails, setShowDetails] = useState<string | null>(null);
 
-  const toggleFreeze = (id: string) => {
-    setCards((prev) => prev.map((c) => c.id === id ? { ...c, status: c.status === 'active' ? 'frozen' : 'active' } : c));
+  useEffect(() => {
+    if (dbCards.length > 0) {
+      setCards(dbCards);
+    }
+  }, [dbCards]);
+
+  const toggleFreeze = async (id: string) => {
+    const card = cards.find(c => c.id === id);
+    if (!card) return;
+    const newStatus = card.status === 'active' ? 'frozen' : 'active';
+    
+    // Update local state optimistically
+    setCards((prev) => prev.map((c) => c.id === id ? { ...c, status: newStatus } : c));
+    
+    // Update DB
+    await supabase.from('cards').update({ status: newStatus }).eq('id', id);
   };
 
   return (
@@ -35,7 +53,9 @@ export function CardsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {cards.map((card, i) => {
-          const available = card.limit - card.spent;
+          const limit = card.limit || card.card_limit || 0;
+          const spent = card.spent || 0;
+          const available = limit - spent;
           const isFrozen = card.status === 'frozen';
           return (
             <motion.div key={card.id} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.1 }}>
@@ -50,8 +70,18 @@ export function CardsPage() {
                     <div className="w-10 h-8 rounded-md bg-white/20 backdrop-blur-sm" />
                   </div>
                   <div>
-                    <div className="w-10 h-7 rounded-md bg-gradient-to-br from-accent-300 to-accent-500 mb-3" />
-                    <p className="font-mono text-lg tracking-wider">{card.number}</p>
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="w-10 h-7 rounded-md bg-gradient-to-br from-accent-300 to-accent-500" />
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setShowCvv(p => ({ ...p, [card.id]: !p[card.id] })) }} 
+                        className="text-white/70 hover:text-white transition-colors"
+                      >
+                        {showCvv[card.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="font-mono text-lg tracking-wider">
+                      {showCvv[card.id] ? card.number : `•••• •••• •••• ${card.number.slice(-4)}`}
+                    </p>
                   </div>
                   <div className="flex justify-between items-end">
                     <div>
@@ -64,9 +94,9 @@ export function CardsPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] uppercase tracking-wider opacity-70">CVV</p>
-                      <button onClick={() => setShowCvv((p) => ({ ...p, [card.id]: !p[card.id] }))} className="text-sm font-mono font-medium hover:underline">
+                      <p className="text-sm font-mono font-medium">
                         {showCvv[card.id] ? card.cvv : '•••'}
-                      </button>
+                      </p>
                     </div>
                   </div>
                   {isFrozen && (
@@ -85,11 +115,11 @@ export function CardsPage() {
 
                   {card.type === 'Credit' && (
                     <div className="space-y-2 mb-4">
-                      <div className="flex justify-between text-sm"><span className="text-secondary-500 dark:text-secondary-400">Credit Limit</span><span className="font-semibold text-primary-900 dark:text-white">{formatCurrency(card.limit)}</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-secondary-500 dark:text-secondary-400">Amount Spent</span><span className="font-semibold text-primary-900 dark:text-white">{formatCurrency(card.spent)}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-secondary-500 dark:text-secondary-400">Credit Limit</span><span className="font-semibold text-primary-900 dark:text-white">{formatCurrency(limit)}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-secondary-500 dark:text-secondary-400">Amount Spent</span><span className="font-semibold text-primary-900 dark:text-white">{formatCurrency(spent)}</span></div>
                       <div className="flex justify-between text-sm"><span className="text-secondary-500 dark:text-secondary-400">Available Credit</span><span className="font-semibold text-success-600 dark:text-success-500">{formatCurrency(available)}</span></div>
                       <div className="h-2 rounded-full bg-secondary-100 dark:bg-secondary-800 overflow-hidden">
-                        <div className="h-full rounded-full gradient-accent" style={{ width: `${(card.spent / card.limit) * 100}%` }} />
+                        <div className="h-full rounded-full gradient-accent" style={{ width: `${limit > 0 ? (spent / limit) * 100 : 0}%` }} />
                       </div>
                     </div>
                   )}
@@ -98,9 +128,16 @@ export function CardsPage() {
                     <Button variant={isFrozen ? 'primary' : 'outline'} size="sm" onClick={() => toggleFreeze(card.id)}>
                       <Snowflake className="w-3.5 h-3.5" /> {isFrozen ? 'Unfreeze' : 'Freeze'}
                     </Button>
-                    <Button variant="outline" size="sm"><AlertTriangle className="w-3.5 h-3.5" /> Report</Button>
-                    <Button variant="outline" size="sm"><Eye className="w-3.5 h-3.5" /> Details</Button>
+                    <Button variant="outline" size="sm" onClick={() => alert('Report Card: Please contact support to report a lost or stolen card.')}><AlertTriangle className="w-3.5 h-3.5" /> Report</Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowDetails(showDetails === card.id ? null : card.id)}><Eye className="w-3.5 h-3.5" /> Details</Button>
                   </div>
+                  {showDetails === card.id && (
+                    <div className="mt-4 pt-4 border-t border-secondary-200 dark:border-secondary-800 text-sm">
+                      <p className="mb-2"><span className="text-secondary-500">Card Name:</span> <span className="font-semibold text-primary-900 dark:text-white">{card.name}</span></p>
+                      <p className="mb-2"><span className="text-secondary-500">Billing Zip:</span> <span className="font-semibold text-primary-900 dark:text-white">90210</span></p>
+                      <p><span className="text-secondary-500">APR:</span> <span className="font-semibold text-primary-900 dark:text-white">14.99%</span></p>
+                    </div>
+                  )}
                 </Card>
               </div>
             </motion.div>

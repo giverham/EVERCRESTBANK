@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, Users, Wallet, ArrowLeftRight, FileText, CreditCard,
-  Bell, Settings, BarChart3, ScrollText, ShieldCheck, Palette, Image,
+  LayoutDashboard, Users, 
+  Settings,
   Database, Menu, X, LogOut, Moon, Sun, ChevronDown, PanelLeftClose, PanelLeft,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -16,28 +16,18 @@ const navSections = [
     items: [
       { label: 'Dashboard', href: '/admin-giver/dashboard', icon: LayoutDashboard },
       { label: 'Customers', href: '/admin-giver/dashboard/customers', icon: Users },
-      { label: 'Accounts', href: '/admin-giver/dashboard/accounts', icon: Wallet },
-      { label: 'Transactions', href: '/admin-giver/dashboard/transactions', icon: ArrowLeftRight },
-      { label: 'Statements', href: '/admin-giver/dashboard/statements', icon: FileText },
-      { label: 'Cards', href: '/admin-giver/dashboard/cards', icon: CreditCard },
     ],
   },
   {
     label: 'Content',
     items: [
       { label: 'Website CMS', href: '/admin-giver/dashboard/cms', icon: Database },
-      { label: 'Media Library', href: '/admin-giver/dashboard/media', icon: Image },
-      { label: 'Theme', href: '/admin-giver/dashboard/theme', icon: Palette },
     ],
   },
   {
     label: 'System',
     items: [
-      { label: 'Notifications', href: '/admin-giver/dashboard/notifications', icon: Bell },
-      { label: 'Reports', href: '/admin-giver/dashboard/reports', icon: BarChart3 },
       { label: 'Settings', href: '/admin-giver/dashboard/settings', icon: Settings },
-      { label: 'Audit Logs', href: '/admin-giver/dashboard/audit-logs', icon: ScrollText },
-      { label: 'Roles', href: '/admin-giver/dashboard/roles', icon: ShieldCheck },
     ],
   },
 ];

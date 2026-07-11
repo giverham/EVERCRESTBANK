@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Info, AlertTriangle, CheckCircle, CheckCheck } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { demoNotifications } from '../../data/demoData';
+import { useSupabaseData } from '../../hooks/useSupabaseData';
+import { supabaseCustomer as supabase } from '../../lib/supabase';
+import type { NotificationItem } from '../../data/demoData';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -19,12 +21,23 @@ const typeConfig = {
 };
 
 export function NotificationsPage() {
-  const [notifications, setNotifications] = useState(demoNotifications);
+  const { data: dbNotifications } = useSupabaseData<NotificationItem>('notifications');
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  useEffect(() => {
+    if (dbNotifications.length > 0) {
+      setNotifications(dbNotifications);
+    }
+  }, [dbNotifications]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length > 0) {
+      await supabase.from('notifications').update({ read: true }).in('id', unreadIds);
+    }
   };
 
   return (

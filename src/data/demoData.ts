@@ -10,6 +10,9 @@ export interface Account {
   availableBalance: number;
   currentBalance: number;
   pendingBalance: number;
+  available_balance?: number;
+  current_balance?: number;
+  pending_balance?: number;
   currency: string;
 }
 
@@ -22,6 +25,8 @@ export interface Transaction {
   type: 'debit' | 'credit';
   status: 'completed' | 'pending';
   merchant?: string;
+  account_id?: string;
+  created_at?: string;
 }
 
 export interface CardInfo {
@@ -35,6 +40,7 @@ export interface CardInfo {
   variant: 'classic' | 'gold' | 'black';
   status: 'active' | 'frozen';
   limit: number;
+  card_limit?: number;
   spent: number;
 }
 
@@ -46,6 +52,10 @@ export interface Statement {
   closingBalance: number;
   totalDeposits: number;
   totalWithdrawals: number;
+  opening_balance?: number;
+  closing_balance?: number;
+  total_deposits?: number;
+  total_withdrawals?: number;
 }
 
 export interface NotificationItem {
@@ -62,6 +72,7 @@ export interface UpcomingPayment {
   name: string;
   amount: number;
   dueDate: string;
+  due_date?: string;
   category: string;
 }
 

@@ -1,6 +1,6 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider } from './context/AuthContext';
+import { CustomerAuthProvider, AdminAuthProvider } from './context/AuthContext';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { CustomerDashboardLayout } from './components/layout/CustomerDashboardLayout';
@@ -30,6 +30,7 @@ import { AdminLoginPage } from './pages/auth/AdminLoginPage';
 // Customer dashboard pages
 import { DashboardHome } from './pages/customer/DashboardHome';
 import { AccountsPage } from './pages/customer/AccountsPage';
+import { AccountDetailsPage } from './pages/customer/AccountDetailsPage';
 import { TransactionsPage } from './pages/customer/TransactionsPage';
 import { CardsPage } from './pages/customer/CardsPage';
 import { StatementsPage } from './pages/customer/StatementsPage';
@@ -41,10 +42,23 @@ import { SettingsPage } from './pages/customer/SettingsPage';
 import { AdminDashboardHome } from './pages/admin/AdminDashboardHome';
 import { AdminCustomersPage } from './pages/admin/AdminCustomersPage';
 import { AdminCMSPage } from './pages/admin/AdminCMSPage';
-import { AdminMediaPage } from './pages/admin/AdminMediaPage';
-import { AdminThemePage } from './pages/admin/AdminThemePage';
-import { AdminSettingsPage } from './pages/admin/AdminSettingsPage';
-import { AdminPlaceholderPage } from './pages/admin/AdminPlaceholderPage';
+import { AdminSettingsWrapper } from './pages/admin/AdminSettingsWrapper';
+
+function CustomerAuthLayout() {
+  return (
+    <CustomerAuthProvider>
+      <Outlet />
+    </CustomerAuthProvider>
+  );
+}
+
+function AdminAuthLayout() {
+  return (
+    <AdminAuthProvider>
+      <Outlet />
+    </AdminAuthProvider>
+  );
+}
 
 const router = createBrowserRouter([
   {
@@ -67,48 +81,49 @@ const router = createBrowserRouter([
       { path: '/open-account', element: <OpenAccountPage /> },
     ],
   },
-  { path: '/login', element: <LoginPage /> },
-  { path: '/admin-giver', element: <AdminLoginPage /> },
   {
-    path: '/dashboard',
-    element: (
-      <ProtectedRoute allowedRole="customer">
-        <CustomerDashboardLayout />
-      </ProtectedRoute>
-    ),
+    element: <CustomerAuthLayout />,
     children: [
-      { index: true, element: <DashboardHome /> },
-      { path: 'accounts', element: <AccountsPage /> },
-      { path: 'transactions', element: <TransactionsPage /> },
-      { path: 'cards', element: <CardsPage /> },
-      { path: 'statements', element: <StatementsPage /> },
-      { path: 'notifications', element: <NotificationsPage /> },
-      { path: 'profile', element: <ProfilePage /> },
-      { path: 'settings', element: <SettingsPage /> },
+      { path: '/login', element: <LoginPage /> },
+      {
+        path: '/dashboard',
+        element: (
+          <ProtectedRoute allowedRole="customer">
+            <CustomerDashboardLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          { index: true, element: <DashboardHome /> },
+          { path: 'accounts', element: <AccountsPage /> },
+          { path: 'accounts/:id', element: <AccountDetailsPage /> },
+          { path: 'transactions', element: <TransactionsPage /> },
+          { path: 'cards', element: <CardsPage /> },
+          { path: 'statements', element: <StatementsPage /> },
+          { path: 'notifications', element: <NotificationsPage /> },
+          { path: 'profile', element: <ProfilePage /> },
+          { path: 'settings', element: <SettingsPage /> },
+        ],
+      },
     ],
   },
   {
-    path: '/admin-giver/dashboard',
-    element: (
-      <ProtectedRoute allowedRole="admin">
-        <AdminDashboardLayout />
-      </ProtectedRoute>
-    ),
+    element: <AdminAuthLayout />,
     children: [
-      { index: true, element: <AdminDashboardHome /> },
-      { path: 'customers', element: <AdminCustomersPage /> },
-      { path: 'accounts', element: <AdminPlaceholderPage title="Account Management" /> },
-      { path: 'transactions', element: <AdminPlaceholderPage title="Transaction Management" /> },
-      { path: 'statements', element: <AdminPlaceholderPage title="Statement Management" /> },
-      { path: 'cards', element: <AdminPlaceholderPage title="Card Management" /> },
-      { path: 'notifications', element: <AdminPlaceholderPage title="Notification Center" /> },
-      { path: 'cms', element: <AdminCMSPage /> },
-      { path: 'media', element: <AdminMediaPage /> },
-      { path: 'theme', element: <AdminThemePage /> },
-      { path: 'reports', element: <AdminPlaceholderPage title="Reports & Analytics" /> },
-      { path: 'settings', element: <AdminSettingsPage /> },
-      { path: 'audit-logs', element: <AdminPlaceholderPage title="Audit Logs" /> },
-      { path: 'roles', element: <AdminPlaceholderPage title="Roles & Permissions" /> },
+      { path: '/admin-giver', element: <AdminLoginPage /> },
+      {
+        path: '/admin-giver/dashboard',
+        element: (
+          <ProtectedRoute allowedRole="admin">
+            <AdminDashboardLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          { index: true, element: <AdminDashboardHome /> },
+          { path: 'customers', element: <AdminCustomersPage /> },
+          { path: 'cms', element: <AdminCMSPage /> },
+          { path: 'settings', element: <AdminSettingsWrapper /> },
+        ],
+      },
     ],
   },
   { path: '*', element: <HomePage /> },
@@ -117,9 +132,7 @@ const router = createBrowserRouter([
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <RouterProvider router={router} />
     </ThemeProvider>
   );
 }

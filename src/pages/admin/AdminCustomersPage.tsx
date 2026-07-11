@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Eye, Edit, Ban, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, Eye, Edit, Users, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+
+import { useAuth } from '../../context/AuthContext';
+import { CustomerManagementConsole } from '../../components/admin/CustomerManagementConsole';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -11,32 +14,58 @@ const fadeUp = {
   transition: { duration: 0.4 },
 };
 
-interface Customer {
-  id: string; name: string; email: string; accountType: string; balance: string; status: 'Active' | 'Suspended' | 'Pending'; joinDate: string; avatar: string;
-}
 
-const customers: Customer[] = [
-  { id: '1', name: 'Alexander Hayes', email: 'alex.hayes@email.com', accountType: 'Premium Checking', balance: '$148,250.00', status: 'Active', joinDate: '2023-01-15', avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100' },
-  { id: '2', name: 'Sophia Laurent', email: 'sophia.l@email.com', accountType: 'Business Savings', balance: '$2,840,000.00', status: 'Active', joinDate: '2022-11-03', avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=100' },
-  { id: '3', name: 'Marcus Whitfield', email: 'm.whitfield@email.com', accountType: 'Premium Checking', balance: '$56,780.00', status: 'Pending', joinDate: '2024-03-22', avatar: 'https://images.pexels.com/photos/697509/pexels-photo-697509.jpeg?auto=compress&cs=tinysrgb&w=100' },
-  { id: '4', name: 'Isabella Romano', email: 'bella.romano@email.com', accountType: 'Wealth Management', balance: '$5,420,000.00', status: 'Active', joinDate: '2021-06-14', avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100' },
-  { id: '5', name: 'James Donovan', email: 'j.donovan@email.com', accountType: 'Business Checking', balance: '$320,500.00', status: 'Suspended', joinDate: '2023-09-08', avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=100' },
-  { id: '6', name: 'Charlotte Beaumont', email: 'c.beaumont@email.com', accountType: 'Premium Savings', balance: '$890,200.00', status: 'Active', joinDate: '2022-04-19', avatar: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=100' },
-  { id: '7', name: 'Nathaniel Sterling', email: 'n.sterling@email.com', accountType: 'Wealth Management', balance: '$12,800,000.00', status: 'Active', joinDate: '2020-02-11', avatar: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=100' },
-  { id: '8', name: 'Olivia Marchetti', email: 'o.marchetti@email.com', accountType: 'Personal Checking', balance: '$24,300.00', status: 'Pending', joinDate: '2024-05-01', avatar: 'https://images.pexels.com/photos/1844012/pexels-photo-1844012.jpeg?auto=compress&cs=tinysrgb&w=100' },
-];
 
 const statusVariant = { Active: 'success', Suspended: 'error', Pending: 'warning' } as const;
 
 export function AdminCustomersPage() {
+  const { supabaseClient: supabase } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
+  
+  // To avoid reloading the entire page list constantly if not needed, we can just use supabase query directly,
+  // but for a dashboard with 2 users, useSupabaseData is fine. However we need to override the user filter.
+  // We'll write a custom fetch for admin to see ALL customers.
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [, setLoading] = useState(true);
+
+  const fetchCustomers = async () => {
+    const { data } = await supabase.from('customers').select('*');
+    if (data) setCustomers(data);
+    setLoading(false);
+  };
+
+  useState(() => {
+    fetchCustomers();
+  });
+
+  const handleDelete = async (customer: any) => {
+    if (customer.email === 'admin@evercrestbank.com' || customer.email === 'customer@evercrestbank.com') {
+      alert('Protected system account. This account cannot be deleted.');
+      return;
+    }
+    
+    if (window.confirm(`Are you sure you want to delete ${customer.first_name}?`)) {
+      const { error } = await supabase.from('customers').delete().eq('id', customer.id);
+      if (error) {
+        alert(error.message || 'Protected system account. This account cannot be deleted.');
+      } else {
+        fetchCustomers();
+      }
+    }
+  };
 
   const filtered = customers.filter((c) => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
+    const fullName = `${c.first_name} ${c.last_name}`;
+    const matchSearch = fullName.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'All' || c.status === statusFilter;
     return matchSearch && matchStatus;
   });
+
+  if (editingCustomerId) {
+    return <CustomerManagementConsole customerId={editingCustomerId} onClose={() => { setEditingCustomerId(null); fetchCustomers(); }} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -92,22 +121,22 @@ export function AdminCustomersPage() {
                 <tr key={c.id} className="hover:bg-secondary-50 dark:hover:bg-secondary-800/30 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <img src={c.avatar} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                      <img src={c.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100'} alt="" className="w-10 h-10 rounded-lg object-cover" />
                       <div>
-                        <p className="font-semibold text-primary-900 dark:text-white text-sm">{c.name}</p>
+                        <p className="font-semibold text-primary-900 dark:text-white text-sm">{c.first_name} {c.last_name}</p>
                         <p className="text-xs text-secondary-400">{c.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-secondary-600 dark:text-secondary-300">{c.accountType}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-primary-900 dark:text-white">{c.balance}</td>
-                  <td className="px-6 py-4"><Badge variant={statusVariant[c.status]}>{c.status}</Badge></td>
-                  <td className="px-6 py-4 text-sm text-secondary-500">{c.joinDate}</td>
+                  <td className="px-6 py-4 text-sm text-secondary-600 dark:text-secondary-300">{c.account_type || 'Checking'}</td>
+                  <td className="px-6 py-4 text-sm font-bold text-primary-900 dark:text-white">-</td>
+                  <td className="px-6 py-4"><Badge variant={statusVariant[c.status as keyof typeof statusVariant] || 'success'}>{c.status || 'Active'}</Badge></td>
+                  <td className="px-6 py-4 text-sm text-secondary-500">{new Date(c.created_at).toLocaleDateString()}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <button className="p-2 rounded-lg text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30" title="View"><Eye className="w-4 h-4" /></button>
-                      <button className="p-2 rounded-lg text-accent-600 hover:bg-accent-50 dark:hover:bg-accent-900/30" title="Edit"><Edit className="w-4 h-4" /></button>
-                      <button className="p-2 rounded-lg text-error-500 hover:bg-error-50 dark:hover:bg-error-500/10" title="Suspend"><Ban className="w-4 h-4" /></button>
+                      <button onClick={() => setEditingCustomerId(c.id)} className="p-2 rounded-lg text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30" title="View"><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => setEditingCustomerId(c.id)} className="p-2 rounded-lg text-accent-600 hover:bg-accent-50 dark:hover:bg-accent-900/30" title="Edit"><Edit className="w-4 h-4" /></button>
+                      <button onClick={() => handleDelete(c)} className="p-2 rounded-lg text-error-500 hover:bg-error-50 dark:hover:bg-error-500/10" title="Delete"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -123,22 +152,21 @@ export function AdminCustomersPage() {
           <motion.div key={c.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: i * 0.05 }}>
             <Card className="p-4">
               <div className="flex items-start gap-3 mb-3">
-                <img src={c.avatar} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                <img src={c.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100'} alt="" className="w-12 h-12 rounded-lg object-cover" />
                 <div className="flex-1">
-                  <p className="font-semibold text-primary-900 dark:text-white">{c.name}</p>
+                  <p className="font-semibold text-primary-900 dark:text-white">{c.first_name} {c.last_name}</p>
                   <p className="text-xs text-secondary-400">{c.email}</p>
                 </div>
-                <Badge variant={statusVariant[c.status]}>{c.status}</Badge>
+                <Badge variant={statusVariant[c.status as keyof typeof statusVariant] || 'success'}>{c.status || 'Active'}</Badge>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                <div><p className="text-xs text-secondary-400">Account Type</p><p className="font-medium text-secondary-700 dark:text-secondary-300">{c.accountType}</p></div>
-                <div><p className="text-xs text-secondary-400">Balance</p><p className="font-bold text-primary-900 dark:text-white">{c.balance}</p></div>
-                <div><p className="text-xs text-secondary-400">Joined</p><p className="font-medium text-secondary-700 dark:text-secondary-300">{c.joinDate}</p></div>
+                <div><p className="text-xs text-secondary-400">Account Type</p><p className="font-medium text-secondary-700 dark:text-secondary-300">{c.account_type || 'Checking'}</p></div>
+                <div><p className="text-xs text-secondary-400">Joined</p><p className="font-medium text-secondary-700 dark:text-secondary-300">{new Date(c.created_at).toLocaleDateString()}</p></div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="primary" className="flex-1"><Eye className="w-4 h-4" /> View</Button>
-                <Button size="sm" variant="secondary" className="flex-1"><Edit className="w-4 h-4" /> Edit</Button>
-                <Button size="sm" variant="danger" className="flex-1"><Ban className="w-4 h-4" /> Suspend</Button>
+                <Button size="sm" variant="primary" onClick={() => setEditingCustomerId(c.id)} className="flex-1"><Eye className="w-4 h-4" /> View</Button>
+                <Button size="sm" variant="secondary" onClick={() => setEditingCustomerId(c.id)} className="flex-1"><Edit className="w-4 h-4" /> Edit</Button>
+                <Button size="sm" variant="danger" onClick={() => handleDelete(c)} className="flex-1"><Trash2 className="w-4 h-4" /> Delete</Button>
               </div>
             </Card>
           </motion.div>

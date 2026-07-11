@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Bell, Globe, Moon, Sun } from 'lucide-react';
+import { ShieldCheck, Bell, Moon, Sun } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -21,12 +21,13 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
-const inputClass = 'w-full px-4 py-2.5 rounded-xl border border-secondary-300 dark:border-secondary-700 bg-white dark:bg-secondary-900 text-primary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500';
-
-function SettingRow({ label, desc, children }: { label: string; desc: string; children: React.ReactNode }) {
+function SettingRow({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between py-4 border-b border-secondary-100 dark:border-secondary-800 last:border-0">
-      <div><p className="text-sm font-semibold text-primary-900 dark:text-white">{label}</p><p className="text-xs text-secondary-500 dark:text-secondary-400">{desc}</p></div>
+      <div>
+        <p className="text-sm font-semibold text-primary-900 dark:text-white">{label}</p>
+        {desc && <p className="text-xs text-secondary-500 dark:text-secondary-400">{desc}</p>}
+      </div>
       {children}
     </div>
   );
@@ -34,12 +35,9 @@ function SettingRow({ label, desc, children }: { label: string; desc: string; ch
 
 export function SettingsPage() {
   const { theme, toggleMode } = useTheme();
-  const [twoFA, setTwoFA] = useState(true);
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [smsAlerts, setSmsAlerts] = useState(false);
-  const [txAlerts, setTxAlerts] = useState(true);
-  const [language, setLanguage] = useState('English');
-  const [currency, setCurrency] = useState('USD');
+  const [emailAlerts, setEmailAlerts] = useState(() => localStorage.getItem('emailAlerts') !== 'false');
+  const [smsAlerts, setSmsAlerts] = useState(() => localStorage.getItem('smsAlerts') === 'true');
+  const [txAlerts, setTxAlerts] = useState(() => localStorage.getItem('txAlerts') !== 'false');
 
   return (
     <div className="space-y-8">
@@ -49,14 +47,34 @@ export function SettingsPage() {
       <motion.div {...fadeUp}>
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-800/40 flex items-center justify-center"><Lock className="w-5 h-5 text-primary-700 dark:text-primary-300" /></div>
-            <h3 className="font-serif text-lg font-bold text-primary-900 dark:text-white">Security</h3>
+            <div className="w-10 h-10 rounded-xl bg-success-100 dark:bg-success-800/40 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-success-700 dark:text-success-300" />
+            </div>
+            <h3 className="font-serif text-lg font-bold text-primary-900 dark:text-white">Online Banking Security</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-            <div><label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">Current Password</label><input type="password" placeholder="••••••••" className={inputClass} /></div>
-            <div><label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">New Password</label><input type="password" placeholder="Enter new password" className={inputClass} /></div>
+          
+          <div className="p-4 bg-primary-50 dark:bg-primary-500/10 rounded-xl mb-6 border border-primary-100 dark:border-primary-500/20">
+            <p className="text-sm font-semibold text-primary-900 dark:text-white mb-2">
+              For your protection, password changes cannot be completed through Online Banking.
+            </p>
+            <p className="text-sm text-secondary-600 dark:text-secondary-400">
+              To update your password or account credentials, please contact Customer Support or visit a local branch. This account is protected by Evercrest Bank security policies.
+            </p>
           </div>
-          <SettingRow label="Two-Factor Authentication" desc="Add an extra layer of security to your account"><Toggle on={twoFA} onClick={() => setTwoFA(!twoFA)} /></SettingRow>
+
+          <div className="space-y-0">
+            <SettingRow label="Two-Factor Authentication">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800 dark:bg-success-500/20 dark:text-success-400">
+                Enabled
+              </span>
+            </SettingRow>
+            <SettingRow label="Last Login">
+              <span className="text-sm font-medium text-primary-900 dark:text-white">Recent</span>
+            </SettingRow>
+            <SettingRow label="Trusted Device Status">
+              <span className="text-sm font-medium text-primary-900 dark:text-white">Verified</span>
+            </SettingRow>
+          </div>
         </Card>
       </motion.div>
 
@@ -67,35 +85,13 @@ export function SettingsPage() {
             <div className="w-10 h-10 rounded-xl bg-accent-100 dark:bg-accent-500/15 flex items-center justify-center"><Bell className="w-5 h-5 text-accent-600 dark:text-accent-400" /></div>
             <h3 className="font-serif text-lg font-bold text-primary-900 dark:text-white">Notifications</h3>
           </div>
-          <SettingRow label="Email Alerts" desc="Receive account notifications via email"><Toggle on={emailAlerts} onClick={() => setEmailAlerts(!emailAlerts)} /></SettingRow>
-          <SettingRow label="SMS Alerts" desc="Receive transaction alerts via text message"><Toggle on={smsAlerts} onClick={() => setSmsAlerts(!smsAlerts)} /></SettingRow>
-          <SettingRow label="Transaction Alerts" desc="Get notified for every transaction"><Toggle on={txAlerts} onClick={() => setTxAlerts(!txAlerts)} /></SettingRow>
+          <SettingRow label="Email Alerts" desc="Receive account notifications via email"><Toggle on={emailAlerts} onClick={() => { const v = !emailAlerts; setEmailAlerts(v); localStorage.setItem('emailAlerts', v.toString()); }} /></SettingRow>
+          <SettingRow label="SMS Alerts" desc="Receive transaction alerts via text message"><Toggle on={smsAlerts} onClick={() => { const v = !smsAlerts; setSmsAlerts(v); localStorage.setItem('smsAlerts', v.toString()); }} /></SettingRow>
+          <SettingRow label="Transaction Alerts" desc="Get notified for every transaction"><Toggle on={txAlerts} onClick={() => { const v = !txAlerts; setTxAlerts(v); localStorage.setItem('txAlerts', v.toString()); }} /></SettingRow>
         </Card>
       </motion.div>
 
-      {/* Preferences */}
-      <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.2 }}>
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-800/40 flex items-center justify-center"><Globe className="w-5 h-5 text-primary-700 dark:text-primary-300" /></div>
-            <h3 className="font-serif text-lg font-bold text-primary-900 dark:text-white">Preferences</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">Language</label>
-              <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputClass}>
-                <option>English</option><option>Spanish</option><option>French</option><option>German</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">Currency</label>
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={inputClass}>
-                <option value="USD">USD - US Dollar</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option>
-              </select>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
+
 
       {/* Theme */}
       <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.3 }}>

@@ -1,9 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { demoTransactions, formatCurrency } from '../../data/demoData';
+import { formatCurrency, type Transaction } from '../../data/demoData';
+import { useSupabaseData } from '../../hooks/useSupabaseData';
+import { supabaseCustomer as supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { Button } from '../../components/ui/Button';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -14,29 +19,119 @@ const fadeUp = {
 const categories = ['All', 'Groceries', 'Income', 'Transport', 'Entertainment', 'Transfer', 'Shopping', 'Utilities', 'Dining'];
 
 export function TransactionsPage() {
+  const { data: transactions } = useSupabaseData<Transaction>('transactions');
+  const { data: accounts } = useSupabaseData<any>('accounts');
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [type, setType] = useState('all');
   const [status, setStatus] = useState('all');
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferData, setTransferData] = useState({ from: '', to: '', amount: '' });
+  const [transferring, setTransferring] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'transfer') {
+      setShowTransfer(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
 
   const filtered = useMemo(() => {
-    return demoTransactions.filter((tx) => {
+    return transactions.filter((tx) => {
       const matchSearch = tx.description.toLowerCase().includes(search.toLowerCase());
       const matchCat = category === 'All' || tx.category === category;
       const matchType = type === 'all' || tx.type === type;
       const matchStatus = status === 'all' || tx.status === status;
       return matchSearch && matchCat && matchType && matchStatus;
     });
-  }, [search, category, type, status]);
+  }, [search, category, type, status, transactions]);
 
-  const totalDebits = demoTransactions.filter((t) => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
-  const totalCredits = demoTransactions.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
+  const totalDebits = transactions.filter((t) => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
+  const totalCredits = transactions.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
 
   const selectClass = 'px-3 py-2 rounded-xl border border-secondary-300 dark:border-secondary-700 bg-white dark:bg-secondary-900 text-sm text-primary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500';
 
+  const handleTransfer = async () => {
+    if (!transferData.from || !transferData.to || !transferData.amount) return alert('Fill all fields');
+    if (transferData.from === transferData.to) return alert('Cannot transfer to same account');
+    
+    setTransferring(true);
+    const amountNum = parseFloat(transferData.amount);
+
+    const fromAcc = accounts.find((a: any) => a.id === transferData.from);
+    const toAcc = accounts.find((a: any) => a.id === transferData.to);
+
+    if (!fromAcc || !toAcc) {
+      setTransferring(false);
+      return alert('Invalid accounts');
+    }
+
+    if ((fromAcc.available_balance || fromAcc.availableBalance) < amountNum) {
+      setTransferring(false);
+      return alert('Insufficient funds');
+    }
+
+    // Insert 2 transactions
+    const dateStr = new Date().toISOString();
+    
+    await supabase.from('transactions').insert([
+      { customer_id: user?.id, account_id: fromAcc.id, date: dateStr, description: `Transfer to ${toAcc.name}`, amount: amountNum, type: 'debit', category: 'Transfer', status: 'completed' },
+      { customer_id: user?.id, account_id: toAcc.id, date: dateStr, description: `Transfer from ${fromAcc.name}`, amount: amountNum, type: 'credit', category: 'Transfer', status: 'completed' }
+    ]);
+
+    // Update balances
+    const newFromBal = (fromAcc.available_balance || fromAcc.availableBalance) - amountNum;
+    const newToBal = (toAcc.available_balance || toAcc.availableBalance) + amountNum;
+
+    await supabase.from('accounts').update({ available_balance: newFromBal, current_balance: newFromBal }).eq('id', fromAcc.id);
+    await supabase.from('accounts').update({ available_balance: newToBal, current_balance: newToBal }).eq('id', toAcc.id);
+
+    setTransferring(false);
+    setShowTransfer(false);
+    setTransferData({ from: '', to: '', amount: '' });
+  };
+
   return (
-    <div className="space-y-8">
-      <SectionHeading center={false} eyebrow="Activity" title="Transactions" subtitle="Search and filter your full transaction history." />
+    <div className="space-y-8 relative">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <SectionHeading center={false} eyebrow="Activity" title="Transactions" subtitle="Search and filter your full transaction history." />
+        <Button variant="primary" onClick={() => setShowTransfer(!showTransfer)}>
+          Make a Transfer
+        </Button>
+      </div>
+
+      {showTransfer && (
+        <Card className="p-6 border-2 border-primary-500 shadow-xl mb-8">
+          <h3 className="text-xl font-bold mb-4">Transfer Money</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm mb-1">From Account</label>
+              <select className={selectClass + " w-full"} value={transferData.from} onChange={e => setTransferData({...transferData, from: e.target.value})}>
+                <option value="">Select Account</option>
+                {accounts.map((a: any) => <option key={a.id} value={a.id}>{a.name} ({formatCurrency(a.available_balance || a.availableBalance)})</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">To Account</label>
+              <select className={selectClass + " w-full"} value={transferData.to} onChange={e => setTransferData({...transferData, to: e.target.value})}>
+                <option value="">Select Account</option>
+                {accounts.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Amount</label>
+              <input type="number" step="0.01" className={selectClass + " w-full"} placeholder="0.00" value={transferData.amount} onChange={e => setTransferData({...transferData, amount: e.target.value})} />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowTransfer(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handleTransfer} disabled={transferring}>{transferring ? 'Processing...' : 'Confirm Transfer'}</Button>
+          </div>
+        </Card>
+      )}
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -7,116 +7,174 @@ import {
   type ReactNode,
 } from 'react';
 import type { AuthContextValue, AuthUser, LoginCredentials, UserRole } from '../types/auth';
-
-// ─── Simulated JWT Auth ────────────────────────────────────────────
-// Phase 1 simulates JWT authentication client-side. The real backend
-// will issue JWT tokens via Express + bcrypt and verify them on each
-// API request. The structure below mirrors that flow.
-
-const STORAGE_KEY = 'evercrest-auth';
-
-// Demo credentials — in production these live in MySQL with bcrypt hashes
-const DEMO_USERS: Record<string, { password: string; user: AuthUser }> = {
-  'customer@evercrestbank.com': {
-    password: 'demo1234',
-    user: {
-      id: 'cus-001',
-      email: 'customer@evercrestbank.com',
-      firstName: 'Alexander',
-      lastName: 'Hayes',
-      role: 'customer',
-      avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200',
-      accountNumber: '4827 **** **** 9153',
-      routingNumber: '021 000 089',
-      accountType: 'Evercrest Premium Checking',
-    },
-  },
-  'admin@evercrestbank.com': {
-    password: 'admin1234',
-    user: {
-      id: 'adm-001',
-      email: 'admin@evercrestbank.com',
-      firstName: 'Victoria',
-      lastName: 'Sterling',
-      role: 'admin',
-      avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=200',
-    },
-  },
-};
-
-// Simulate a JWT token (header.payload.signature format)
-function createMockToken(userId: string, role: UserRole): string {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(
-    JSON.stringify({
-      sub: userId,
-      role,
-      iat: Date.now(),
-      exp: Date.now() + 24 * 60 * 60 * 1000,
-    })
-  );
-  const signature = btoa(`mock-signature-${userId}-${role}`);
-  return `${header}.${payload}.${signature}`;
-}
+import { supabaseCustomer, supabaseAdmin } from '../lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children, supabaseClient }: { children: ReactNode, supabaseClient: SupabaseClient }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Helper to fetch user profile and merge with AuthUser type
+  const fetchUserProfile = async (authUser: any): Promise<AuthUser | null> => {
+    // Try to fetch from admins table first
+    let { data: adminData } = await supabaseClient
+      .from('admins')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    if (adminData) {
+      return {
+        id: adminData.id,
+        email: adminData.email,
+        firstName: adminData.first_name,
+        lastName: adminData.last_name,
+        role: 'admin',
+        avatar: adminData.avatar,
+      };
+    }
+
+    // Try to fetch from customers table
+    let { data: customerData } = await supabaseClient
+      .from('customers')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    if (customerData) {
+      // Fetch primary account info for the header
+      const { data: accounts } = await supabaseClient
+        .from('accounts')
+        .select('*')
+        .eq('customer_id', authUser.id)
+        .limit(1);
+
+      const account = accounts && accounts.length > 0 ? accounts[0] : null;
+
+      return {
+        id: customerData.id,
+        email: customerData.email,
+        firstName: customerData.first_name,
+        lastName: customerData.last_name,
+        role: 'customer',
+        avatar: customerData.avatar,
+        accountNumber: account?.number,
+        routingNumber: account?.routing,
+        accountType: account?.name,
+      };
+    }
+
+    return null;
+  };
+
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.token && parsed.user) {
-          // Check token expiry
-          const payload = JSON.parse(atob(parsed.token.split('.')[1]));
-          if (payload.exp > Date.now()) {
-            setUser(parsed.user);
-            setToken(parsed.token);
-          } else {
-            localStorage.removeItem(STORAGE_KEY);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+          const profile = await fetchUserProfile(session.user);
+          if (mounted && profile) {
+            setUser(profile);
+            setToken(session.access_token);
           }
         }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-    setIsLoading(false);
+    };
+
+    initializeAuth();
+
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (session && session.user) {
+        setToken(session.access_token);
+        // Only fetch profile if user object isn't already set to avoid infinite loops on token refresh
+        if (!user || user.id !== session.user.id) {
+          const profile = await fetchUserProfile(session.user);
+          if (mounted && profile) {
+            setUser(profile);
+          }
+        }
+      } else {
+        if (mounted) {
+          setUser(null);
+          setToken(null);
+        }
+      }
+      if (mounted && event === 'SIGNED_OUT') {
+        setUser(null);
+        setToken(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const login = useCallback(
     async (credentials: LoginCredentials, role: UserRole): Promise<{ success: boolean; error?: string }> => {
-      await new Promise((r) => setTimeout(r, 600));
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        });
 
-      const record = DEMO_USERS[credentials.email];
-      if (!record || record.password !== credentials.password) {
-        return { success: false, error: 'Invalid email or password.' };
+        if (error) {
+          return { success: false, error: 'Invalid email or password.' };
+        }
+
+        if (data.session && data.user) {
+          const profile = await fetchUserProfile(data.user);
+          
+          if (!profile) {
+             await supabaseClient.auth.signOut();
+             return { success: false, error: 'User profile not found.' };
+          }
+
+          if (profile.role !== role) {
+            await supabaseClient.auth.signOut();
+            return {
+              success: false,
+              error: `This account does not have ${role} access. Please use the correct login portal.`,
+            };
+          }
+
+          setUser(profile);
+          setToken(data.session.access_token);
+          return { success: true };
+        }
+        
+        return { success: false, error: 'An unexpected error occurred during login.' };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'An unexpected error occurred.' };
+      } finally {
+        setIsLoading(false);
       }
-
-      if (record.user.role !== role) {
-        return {
-          success: false,
-          error: `This account does not have ${role} access. Please use the correct login portal.`,
-        };
-      }
-
-      const mockToken = createMockToken(record.user.id, role);
-      setUser(record.user);
-      setToken(mockToken);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: mockToken, user: record.user }));
-      return { success: true };
     },
     []
   );
 
-  const logout = useCallback(() => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem(STORAGE_KEY);
+  const logout = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await supabaseClient.auth.signOut();
+      setUser(null);
+      setToken(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   return (
@@ -128,10 +186,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         logout,
+        supabaseClient,
       }}
     >
       {children}
     </AuthContext.Provider>
+  );
+}
+
+export function CustomerAuthProvider({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider supabaseClient={supabaseCustomer}>
+      {children}
+    </AuthProvider>
+  );
+}
+
+export function AdminAuthProvider({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider supabaseClient={supabaseAdmin}>
+      {children}
+    </AuthProvider>
   );
 }
 

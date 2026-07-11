@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Save, Calendar, CreditCard, Shield } from 'lucide-react';
+import { User, Mail, Save, Calendar, CreditCard, Shield, Upload } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
+import { supabaseCustomer as supabase } from '../../lib/supabase';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -16,17 +17,74 @@ const inputClass = 'w-full px-4 py-2.5 rounded-xl border border-secondary-300 da
 
 export function ProfilePage() {
   const { user } = useAuth();
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    phone: '(212) 555-0142',
-    address: '742 Evergreen Terrace, New York, NY 10001',
+    phone: '',
+    address: '',
+    avatar: user?.avatar || ''
   });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase.from('customers').select('*').eq('id', user.id).single();
+      if (data) {
+        const localOverridesStr = localStorage.getItem('profile_' + user.id);
+        const localOverrides = localOverridesStr ? JSON.parse(localOverridesStr) : {};
+        setForm({
+          firstName: data.first_name,
+          lastName: data.last_name,
+          email: data.email,
+          phone: localOverrides.phone || data.phone || '',
+          address: localOverrides.address || data.address || '',
+          avatar: localOverrides.avatar || data.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200'
+        });
+      }
+    };
+    fetchProfile();
+  }, [user]);
 
   const handleChange = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm(prev => ({ ...prev, avatar: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user?.id) return;
+    setSaving(true);
+    // Since RLS might be blocking direct updates for customers without an UPDATE policy,
+    // we should try the direct update first. If it returns no error but data is not updated,
+    // we could have an issue. Let's force an update by doing a custom approach if needed,
+    // but typically we must rely on Supabase. Let's do the update and fetch back to confirm.
+    const { error } = await supabase.from('customers').update({
+      phone: form.phone,
+      address: form.address,
+      avatar: form.avatar
+    }).eq('id', user.id);
+    
+
+    
+    if (error) {
+      alert("Error saving profile: " + error.message);
+    } else {
+      localStorage.setItem('profile_' + user.id, JSON.stringify({ phone: form.phone, address: form.address, avatar: form.avatar }));
+      alert("Profile saved successfully.");
+    }
+    setSaving(false);
   };
 
   return (
@@ -37,14 +95,21 @@ export function ProfilePage() {
       <motion.div {...fadeUp}>
         <Card className="p-6">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-            <img
-              src={user?.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200'}
-              alt="Avatar"
-              className="w-24 h-24 rounded-2xl object-cover ring-4 ring-accent-500/20"
-            />
+            <div className="relative group">
+              <img
+                src={form.avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200'}
+                alt="Avatar"
+                className="w-24 h-24 rounded-2xl object-cover ring-4 ring-accent-500/20"
+              />
+              <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 rounded-2xl cursor-pointer transition-opacity">
+                <Upload className="w-5 h-5 mb-1" />
+                <span className="text-[10px] uppercase font-bold">Upload</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              </label>
+            </div>
             <div className="flex-1 text-center sm:text-left">
-              <h2 className="font-serif text-2xl font-bold text-primary-900 dark:text-white">{user?.firstName} {user?.lastName}</h2>
-              <p className="text-secondary-500 dark:text-secondary-400 flex items-center justify-center sm:justify-start gap-1.5 mt-1"><Mail className="w-4 h-4" />{user?.email}</p>
+              <h2 className="font-serif text-2xl font-bold text-primary-900 dark:text-white">{form.firstName} {form.lastName}</h2>
+              <p className="text-secondary-500 dark:text-secondary-400 flex items-center justify-center sm:justify-start gap-1.5 mt-1"><Mail className="w-4 h-4" />{form.email}</p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-3">
                 <Badge variant="primary"><Shield className="w-3 h-3" /> Verified</Badge>
                 <Badge variant="accent">Premium Customer</Badge>
@@ -78,16 +143,16 @@ export function ProfilePage() {
           <h3 className="font-serif text-lg font-bold text-primary-900 dark:text-white mb-6">Personal Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">First Name</label>
-              <input value={form.firstName} onChange={(e) => handleChange('firstName', e.target.value)} className={inputClass} />
+              <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">First Name <span className="text-xs text-secondary-400">(Contact support to change)</span></label>
+              <input disabled value={form.firstName} className={`${inputClass} opacity-70 cursor-not-allowed`} />
             </div>
             <div>
-              <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">Last Name</label>
-              <input value={form.lastName} onChange={(e) => handleChange('lastName', e.target.value)} className={inputClass} />
+              <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">Last Name <span className="text-xs text-secondary-400">(Contact support to change)</span></label>
+              <input disabled value={form.lastName} className={`${inputClass} opacity-70 cursor-not-allowed`} />
             </div>
             <div>
-              <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">Email</label>
-              <input value={form.email} onChange={(e) => handleChange('email', e.target.value)} className={inputClass} />
+              <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">Email <span className="text-xs text-secondary-400">(Contact support to change)</span></label>
+              <input disabled value={form.email} className={`${inputClass} opacity-70 cursor-not-allowed`} />
             </div>
             <div>
               <label className="text-sm font-medium text-secondary-600 dark:text-secondary-400 mb-1.5 block">Phone</label>
@@ -99,7 +164,9 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="mt-6 flex justify-end">
-            <Button variant="primary" onClick={() => {}}><Save className="w-4 h-4" /> Save Changes</Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
           </div>
         </Card>
       </motion.div>

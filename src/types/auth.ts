@@ -33,4 +33,5 @@ export interface LoginCredentials {
 export interface AuthContextValue extends AuthState {
   login: (credentials: LoginCredentials, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  supabaseClient: any;
 }

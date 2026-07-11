@@ -5,16 +5,17 @@ interface CardProps {
   className?: string;
   hover?: boolean;
   glass?: boolean;
+  onClick?: (e: any) => void;
 }
 
-export function Card({ children, className = '', hover = false, glass = false }: CardProps) {
+export function Card({ children, className = '', hover = false, glass = false, onClick }: CardProps) {
   const base = glass
     ? 'glass rounded-2xl shadow-glass'
     : 'card-premium';
   const hoverClass = hover
     ? 'hover:shadow-premium hover:-translate-y-1 cursor-pointer'
     : '';
-  return <div className={`${base} ${hoverClass} ${className}`}>{children}</div>;
+  return <div className={`${base} ${hoverClass} ${className}`} onClick={onClick}>{children}</div>;
 }
 
 interface SectionHeadingProps {
