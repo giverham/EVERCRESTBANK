@@ -9,6 +9,7 @@ import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { supabaseCustomer as supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
+import { calculateAccountBalances } from '../../utils/calculations';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -55,43 +56,97 @@ export function TransactionsPage() {
   const selectClass = 'px-3 py-2 rounded-xl border border-secondary-300 dark:border-secondary-700 bg-white dark:bg-secondary-900 text-sm text-primary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500';
 
   const handleTransfer = async () => {
-    if (!transferData.from || !transferData.to || !transferData.amount) return alert('Fill all fields');
-    if (transferData.from === transferData.to) return alert('Cannot transfer to same account');
+    if (!transferData.from || !transferData.to || !transferData.amount) {
+      return alert('Please fill in all fields.');
+    }
+    if (transferData.from === transferData.to) {
+      return alert('Source and destination accounts cannot be the same.');
+    }
     
     setTransferring(true);
     const amountNum = parseFloat(transferData.amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setTransferring(false);
+      return alert('Amount must be greater than zero.');
+    }
 
     const fromAcc = accounts.find((a: any) => a.id === transferData.from);
     const toAcc = accounts.find((a: any) => a.id === transferData.to);
 
     if (!fromAcc || !toAcc) {
       setTransferring(false);
-      return alert('Invalid accounts');
+      return alert('Source or destination account does not exist.');
     }
 
-    if ((fromAcc.available_balance || fromAcc.availableBalance) < amountNum) {
+    // Calculate the precise derived available balance of source account
+    const { available: fromAvailable } = calculateAccountBalances(fromAcc, transactions);
+
+    if (fromAvailable < amountNum) {
       setTransferring(false);
-      return alert('Insufficient funds');
+      return alert(`Insufficient available balance. Required: ${formatCurrency(amountNum)}, Available: ${formatCurrency(fromAvailable)}`);
     }
 
-    // Insert 2 transactions
+    const transferId = `tr-${Date.now()}`;
     const dateStr = new Date().toISOString();
-    
-    await supabase.from('transactions').insert([
-      { customer_id: user?.id, account_id: fromAcc.id, date: dateStr, description: `Transfer to ${toAcc.name}`, amount: amountNum, type: 'debit', category: 'Transfer', status: 'completed' },
-      { customer_id: user?.id, account_id: toAcc.id, date: dateStr, description: `Transfer from ${fromAcc.name}`, amount: amountNum, type: 'credit', category: 'Transfer', status: 'completed' }
-    ]);
 
-    // Update balances
-    const newFromBal = (fromAcc.available_balance || fromAcc.availableBalance) - amountNum;
-    const newToBal = (toAcc.available_balance || toAcc.availableBalance) + amountNum;
+    const debitTxId = `${transferId}-debit`;
+    const creditTxId = `${transferId}-credit`;
 
-    await supabase.from('accounts').update({ available_balance: newFromBal, current_balance: newFromBal }).eq('id', fromAcc.id);
-    await supabase.from('accounts').update({ available_balance: newToBal, current_balance: newToBal }).eq('id', toAcc.id);
+    const debitTx = {
+      id: debitTxId,
+      customer_id: user?.id,
+      account_id: fromAcc.id,
+      date: dateStr,
+      description: `Transfer to ${toAcc.name}`,
+      category: 'Transfer',
+      amount: amountNum,
+      type: 'debit',
+      status: 'completed',
+      merchant: `Transfer: ${transferId} | From: ${fromAcc.id} | To: ${toAcc.id} | Created By: ${user?.firstName} ${user?.lastName}`
+    };
 
-    setTransferring(false);
-    setShowTransfer(false);
-    setTransferData({ from: '', to: '', amount: '' });
+    const creditTx = {
+      id: creditTxId,
+      customer_id: user?.id,
+      account_id: toAcc.id,
+      date: dateStr,
+      description: `Transfer from ${fromAcc.name}`,
+      category: 'Transfer',
+      amount: amountNum,
+      type: 'credit',
+      status: 'completed',
+      merchant: `Transfer: ${transferId} | From: ${fromAcc.id} | To: ${toAcc.id} | Created By: ${user?.firstName} ${user?.lastName}`
+    };
+
+    try {
+      // 1. Insert both transaction records as an atomic batch
+      const { error: txError } = await supabase.from('transactions').insert([debitTx, creditTx]);
+      if (txError) throw txError;
+
+      // 2. Update balances (using DB master current_balance)
+      const newFromBal = parseFloat((Number(fromAcc.current_balance || 0) - amountNum).toFixed(2));
+      const newToBal = parseFloat((Number(toAcc.current_balance || 0) + amountNum).toFixed(2));
+
+      const { error: fromError } = await supabase.from('accounts').update({ 
+        current_balance: newFromBal,
+        available_balance: newFromBal
+      }).eq('id', fromAcc.id);
+      if (fromError) throw fromError;
+
+      const { error: toError } = await supabase.from('accounts').update({
+        current_balance: newToBal,
+        available_balance: newToBal
+      }).eq('id', toAcc.id);
+      if (toError) throw toError;
+
+      alert('Transfer completed successfully!');
+      setShowTransfer(false);
+      setTransferData({ from: '', to: '', amount: '' });
+    } catch (err: any) {
+      alert(`Transfer failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setTransferring(false);
+    }
   };
 
   return (
@@ -109,26 +164,26 @@ export function TransactionsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm mb-1">From Account</label>
-              <select className={selectClass + " w-full"} value={transferData.from} onChange={e => setTransferData({...transferData, from: e.target.value})}>
+              <select id="transfer-from-select" className={selectClass + " w-full"} value={transferData.from} onChange={e => setTransferData({...transferData, from: e.target.value})}>
                 <option value="">Select Account</option>
                 {accounts.map((a: any) => <option key={a.id} value={a.id}>{a.name} ({formatCurrency(a.available_balance || a.availableBalance)})</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm mb-1">To Account</label>
-              <select className={selectClass + " w-full"} value={transferData.to} onChange={e => setTransferData({...transferData, to: e.target.value})}>
+              <select id="transfer-to-select" className={selectClass + " w-full"} value={transferData.to} onChange={e => setTransferData({...transferData, to: e.target.value})}>
                 <option value="">Select Account</option>
                 {accounts.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm mb-1">Amount</label>
-              <input type="number" step="0.01" className={selectClass + " w-full"} placeholder="0.00" value={transferData.amount} onChange={e => setTransferData({...transferData, amount: e.target.value})} />
+              <input id="transfer-amount-input" type="number" step="0.01" className={selectClass + " w-full"} placeholder="0.00" value={transferData.amount} onChange={e => setTransferData({...transferData, amount: e.target.value})} />
             </div>
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setShowTransfer(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleTransfer} disabled={transferring}>{transferring ? 'Processing...' : 'Confirm Transfer'}</Button>
+            <Button id="transfer-confirm-btn" variant="primary" onClick={handleTransfer} disabled={transferring}>{transferring ? 'Processing...' : 'Confirm Transfer'}</Button>
           </div>
         </Card>
       )}
