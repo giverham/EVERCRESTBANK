@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ChevronDown, Moon, Sun, Phone, ShieldCheck } from 'lucide-react';
-import { siteConfig } from '../../config/siteConfig';
+import { useWebsite } from '../../context/WebsiteContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LinkButton } from '../ui/Button';
 
 export function Navbar() {
+  const { settings: siteConfig } = useWebsite();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);

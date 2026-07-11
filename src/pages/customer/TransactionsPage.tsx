@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Search, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { formatCurrency, type Transaction } from '../../data/demoData';
+import { formatCurrency, formatTransactionDate, type Transaction } from '../../data/demoData';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { supabaseCustomer as supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -41,17 +41,26 @@ export function TransactionsPage() {
   }, [searchParams, setSearchParams]);
 
   const filtered = useMemo(() => {
-    return transactions.filter((tx) => {
+    const res = transactions.filter((tx) => {
       const matchSearch = tx.description.toLowerCase().includes(search.toLowerCase());
       const matchCat = category === 'All' || tx.category === category;
       const matchType = type === 'all' || tx.type === type;
-      const matchStatus = status === 'all' || tx.status === status;
+      const matchStatus = status === 'all' || tx.status?.toLowerCase() === status.toLowerCase();
       return matchSearch && matchCat && matchType && matchStatus;
+    });
+    return [...res].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) return dateB - dateA;
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return b.id.localeCompare(a.id);
     });
   }, [search, category, type, status, transactions]);
 
-  const totalDebits = transactions.filter((t) => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
-  const totalCredits = transactions.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
+  const totalDebits = transactions.filter((t) => t.type === 'debit').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const totalCredits = transactions.filter((t) => t.type === 'credit').reduce((s, t) => s + (Number(t.amount) || 0), 0);
 
   const selectClass = 'px-3 py-2 rounded-xl border border-secondary-300 dark:border-secondary-700 bg-white dark:bg-secondary-900 text-sm text-primary-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500';
 
@@ -76,6 +85,43 @@ export function TransactionsPage() {
     if (!fromAcc || !toAcc) {
       setTransferring(false);
       return alert('Source or destination account does not exist.');
+    }
+
+    // Check account status and type restrictions
+    if (fromAcc.is_fixed_savings) {
+      setTransferring(false);
+      return alert(
+        "This is a Fixed Savings Account.\n" +
+        "Funds are locked until maturity.\n" +
+        "Withdrawals are currently unavailable.\n" +
+        "Please contact customer support for early withdrawal requests."
+      );
+    }
+
+    if (fromAcc.is_investment) {
+      setTransferring(false);
+      return alert(
+        "This investment is currently locked.\n" +
+        "Funds are invested and unavailable for transfer.\n" +
+        "Please contact your relationship manager."
+      );
+    }
+
+    if (fromAcc.status && fromAcc.status !== 'Active') {
+      setTransferring(false);
+      let statusMsg = `This account is currently ${fromAcc.status}. Outgoing transactions are suspended.`;
+      if (fromAcc.status === 'Locked') {
+        statusMsg = "This account is locked. Withdrawals or transfers are currently disabled.";
+      } else if (fromAcc.status === 'Frozen') {
+        statusMsg = "This account is frozen. All outgoing transactions have been suspended.";
+      } else if (fromAcc.status === 'Dormant') {
+        statusMsg = "This account is dormant. Please contact support to reactivate your account.";
+      } else if (fromAcc.status === 'Under Review') {
+        statusMsg = "This account is under review. Outgoing transfers are restricted.";
+      } else if (fromAcc.status === 'Restricted') {
+        statusMsg = "Transfer restriction is active on this account.";
+      }
+      return alert(statusMsg);
     }
 
     // Calculate the precise derived available balance of source account
@@ -122,6 +168,40 @@ export function TransactionsPage() {
       // 1. Insert both transaction records as an atomic batch
       const { error: txError } = await supabase.from('transactions').insert([debitTx, creditTx]);
       if (txError) throw txError;
+
+      // 2. Trigger automatic real-time inbox notifications
+      const notificationsToInsert = [
+        {
+          customer_id: user?.id,
+          title: "Transfer Sent",
+          message: `Your transfer of ${formatCurrency(amountNum)} from ${fromAcc.name} to ${toAcc.name} has been processed successfully.`,
+          type: 'success' as const,
+          read: false,
+          date: new Date().toISOString().split('T')[0]
+        }
+      ];
+
+      if (toAcc.customer_id && toAcc.customer_id !== user?.id) {
+        notificationsToInsert.push({
+          customer_id: toAcc.customer_id,
+          title: "Transfer Received",
+          message: `You received a transfer of ${formatCurrency(amountNum)} from ${user?.firstName} ${user?.lastName} into account ${toAcc.name}.`,
+          type: 'success' as const,
+          read: false,
+          date: new Date().toISOString().split('T')[0]
+        });
+      } else if (toAcc.customer_id === user?.id) {
+        notificationsToInsert.push({
+          customer_id: user?.id,
+          title: "Transfer Received",
+          message: `Your account ${toAcc.name} received an internal transfer of ${formatCurrency(amountNum)} from ${fromAcc.name}.`,
+          type: 'success' as const,
+          read: false,
+          date: new Date().toISOString().split('T')[0]
+        });
+      }
+
+      await supabase.from('notifications').insert(notificationsToInsert);
 
       // 2. Update balances (using DB master current_balance)
       const newFromBal = parseFloat((Number(fromAcc.current_balance || 0) - amountNum).toFixed(2));
@@ -243,7 +323,7 @@ export function TransactionsPage() {
             <tbody className="divide-y divide-secondary-100 dark:divide-secondary-800">
               {filtered.map((tx) => (
                 <tr key={tx.id} className="hover:bg-secondary-50 dark:hover:bg-secondary-800/30 transition-colors">
-                  <td className="px-6 py-4 text-sm text-secondary-600 dark:text-secondary-400">{tx.date}</td>
+                  <td className="px-6 py-4 text-sm text-secondary-600 dark:text-secondary-400">{formatTransactionDate(tx.date)}</td>
                   <td className="px-6 py-4 text-sm font-medium text-primary-900 dark:text-white">{tx.description}</td>
                   <td className="px-6 py-4"><Badge variant="neutral">{tx.category}</Badge></td>
                   <td className="px-6 py-4">
@@ -252,7 +332,7 @@ export function TransactionsPage() {
                     </span>
                   </td>
                   <td className={`px-6 py-4 text-sm font-bold ${tx.type === 'credit' ? 'text-success-600 dark:text-success-500' : 'text-primary-900 dark:text-white'}`}>{tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount)}</td>
-                  <td className="px-6 py-4"><Badge variant={tx.status === 'completed' ? 'success' : 'warning'}>{tx.status}</Badge></td>
+                  <td className="px-6 py-4"><Badge variant={tx.status?.toLowerCase() === 'completed' ? 'success' : 'warning'}>{tx.status}</Badge></td>
                 </tr>
               ))}
             </tbody>
@@ -272,12 +352,12 @@ export function TransactionsPage() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-primary-900 dark:text-white">{tx.description}</p>
-                    <p className="text-xs text-secondary-500 dark:text-secondary-400">{tx.date} · {tx.category}</p>
+                    <p className="text-xs text-secondary-500 dark:text-secondary-400">{formatTransactionDate(tx.date)} · {tx.category}</p>
                   </div>
                 </div>
                 <span className={`text-sm font-bold ${tx.type === 'credit' ? 'text-success-600 dark:text-success-500' : 'text-primary-900 dark:text-white'}`}>{tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount)}</span>
               </div>
-              <div className="flex items-center gap-2"><Badge variant={tx.status === 'completed' ? 'success' : 'warning'}>{tx.status}</Badge></div>
+              <div className="flex items-center gap-2"><Badge variant={tx.status?.toLowerCase() === 'completed' ? 'success' : 'warning'}>{tx.status}</Badge></div>
             </Card>
           </motion.div>
         ))}

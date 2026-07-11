@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Users, 
   Settings,
   Database, Menu, X, LogOut, Moon, Sun, ChevronDown, PanelLeftClose, PanelLeft,
+  Globe
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -27,6 +28,7 @@ const navSections = [
   {
     label: 'System',
     items: [
+      { label: 'Website Settings', href: '/admin-giver/dashboard/website-settings', icon: Globe },
       { label: 'Settings', href: '/admin-giver/dashboard/settings', icon: Settings },
     ],
   },

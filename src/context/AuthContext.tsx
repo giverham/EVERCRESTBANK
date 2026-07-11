@@ -27,13 +27,15 @@ export function AuthProvider({ children, supabaseClient }: { children: ReactNode
       .single();
 
     if (adminData) {
+      const adminInitials = `${adminData.first_name?.[0] || 'A'}${adminData.last_name?.[0] || ''}`.toUpperCase();
+      const defaultAdminAvatar = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><rect width="100%" height="100%" fill="%231e3a8a"/><text x="50" y="58" font-family="sans-serif" font-size="32" font-weight="bold" fill="%23f8fafc" text-anchor="middle">${adminInitials}</text></svg>`;
       return {
         id: adminData.id,
         email: adminData.email,
         firstName: adminData.first_name,
         lastName: adminData.last_name,
         role: 'admin',
-        avatar: adminData.avatar,
+        avatar: adminData.avatar || defaultAdminAvatar,
       };
     }
 
@@ -53,6 +55,8 @@ export function AuthProvider({ children, supabaseClient }: { children: ReactNode
         .limit(1);
 
       const account = accounts && accounts.length > 0 ? accounts[0] : null;
+      const customerInitials = `${customerData.first_name?.[0] || 'U'}${customerData.last_name?.[0] || ''}`.toUpperCase();
+      const defaultCustomerAvatar = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><rect width="100%" height="100%" fill="%230f172a"/><text x="50" y="58" font-family="sans-serif" font-size="32" font-weight="bold" fill="%23f8fafc" text-anchor="middle">${customerInitials}</text></svg>`;
 
       return {
         id: customerData.id,
@@ -60,7 +64,7 @@ export function AuthProvider({ children, supabaseClient }: { children: ReactNode
         firstName: customerData.first_name,
         lastName: customerData.last_name,
         role: 'customer',
-        avatar: customerData.avatar,
+        avatar: customerData.avatar || defaultCustomerAvatar,
         accountNumber: account?.number,
         routingNumber: account?.routing,
         accountType: account?.name,
@@ -121,6 +125,40 @@ export function AuthProvider({ children, supabaseClient }: { children: ReactNode
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  // Real-time user profile database sync
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const targetTable = user.role === 'admin' ? 'admins' : 'customers';
+    const profileChannel = supabaseClient
+      .channel(`realtime-user-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: targetTable,
+          filter: `id=eq.${user.id}`
+        },
+        async (payload) => {
+          console.log('Realtime profile change received:', payload);
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session && session.user) {
+            const freshProfile = await fetchUserProfile(session.user);
+            if (freshProfile) {
+              setUser(freshProfile);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      profileChannel.unsubscribe();
+    };
+  }, [user?.id]);
+
 
   const login = useCallback(
     async (credentials: LoginCredentials, role: UserRole): Promise<{ success: boolean; error?: string }> => {

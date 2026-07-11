@@ -34,7 +34,6 @@ import { AccountDetailsPage } from './pages/customer/AccountDetailsPage';
 import { TransactionsPage } from './pages/customer/TransactionsPage';
 import { CardsPage } from './pages/customer/CardsPage';
 import { StatementsPage } from './pages/customer/StatementsPage';
-import { NotificationsPage } from './pages/customer/NotificationsPage';
 import { ProfilePage } from './pages/customer/ProfilePage';
 import { SettingsPage } from './pages/customer/SettingsPage';
 
@@ -43,6 +42,7 @@ import { AdminDashboardHome } from './pages/admin/AdminDashboardHome';
 import { AdminCustomersPage } from './pages/admin/AdminCustomersPage';
 import { AdminCMSPage } from './pages/admin/AdminCMSPage';
 import { AdminSettingsWrapper } from './pages/admin/AdminSettingsWrapper';
+import WebsiteSettings from './pages/admin/WebsiteSettings';
 
 function CustomerAuthLayout() {
   return (
@@ -99,7 +99,6 @@ const router = createBrowserRouter([
           { path: 'transactions', element: <TransactionsPage /> },
           { path: 'cards', element: <CardsPage /> },
           { path: 'statements', element: <StatementsPage /> },
-          { path: 'notifications', element: <NotificationsPage /> },
           { path: 'profile', element: <ProfilePage /> },
           { path: 'settings', element: <SettingsPage /> },
         ],
@@ -121,6 +120,7 @@ const router = createBrowserRouter([
           { index: true, element: <AdminDashboardHome /> },
           { path: 'customers', element: <AdminCustomersPage /> },
           { path: 'cms', element: <AdminCMSPage /> },
+          { path: 'website-settings', element: <WebsiteSettings /> },
           { path: 'settings', element: <AdminSettingsWrapper /> },
         ],
       },
@@ -129,10 +129,14 @@ const router = createBrowserRouter([
   { path: '*', element: <HomePage /> },
 ]);
 
+import { WebsiteProvider } from './context/WebsiteContext';
+
 export default function App() {
   return (
     <ThemeProvider>
-      <RouterProvider router={router} />
+      <WebsiteProvider>
+        <RouterProvider router={router} />
+      </WebsiteProvider>
     </ThemeProvider>
   );
 }

@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Bell, Moon, Sun } from 'lucide-react';
+import { ShieldCheck, Moon, Sun, KeyRound, Clock, Activity, Fingerprint } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import { supabaseCustomer as supabase } from '../../lib/supabase';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -35,66 +37,86 @@ function SettingRow({ label, desc, children }: { label: string; desc?: string; c
 
 export function SettingsPage() {
   const { theme, toggleMode } = useTheme();
+  const { user } = useAuth();
+  const [customerData, setCustomerData] = useState<any>(null);
   const [emailAlerts, setEmailAlerts] = useState(() => localStorage.getItem('emailAlerts') !== 'false');
   const [smsAlerts, setSmsAlerts] = useState(() => localStorage.getItem('smsAlerts') === 'true');
   const [txAlerts, setTxAlerts] = useState(() => localStorage.getItem('txAlerts') !== 'false');
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase.from('customers').select('*').eq('id', user.id).single();
+      if (data) {
+        setCustomerData(data);
+      }
+    };
+    fetchProfile();
+  }, [user]);
 
   return (
     <div className="space-y-8">
       <SectionHeading center={false} eyebrow="Configuration" title="Settings" subtitle="Manage your security, notifications, and preferences." />
 
-      {/* Security */}
+      {/* Security settings */}
       <motion.div {...fadeUp}>
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-success-100 dark:bg-success-800/40 flex items-center justify-center">
               <ShieldCheck className="w-5 h-5 text-success-700 dark:text-success-300" />
             </div>
-            <h3 className="font-serif text-lg font-bold text-primary-900 dark:text-white">Online Banking Security</h3>
-          </div>
-          
-          <div className="p-4 bg-primary-50 dark:bg-primary-500/10 rounded-xl mb-6 border border-primary-100 dark:border-primary-500/20">
-            <p className="text-sm font-semibold text-primary-900 dark:text-white mb-2">
-              For your protection, password changes cannot be completed through Online Banking.
-            </p>
-            <p className="text-sm text-secondary-600 dark:text-secondary-400">
-              To update your password or account credentials, please contact Customer Support or visit a local branch. This account is protected by Evercrest Bank security policies.
-            </p>
+            <h3 className="font-serif text-lg font-bold text-primary-900 dark:text-white">Account Security & Details</h3>
           </div>
 
           <div className="space-y-0">
-            <SettingRow label="Two-Factor Authentication">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800 dark:bg-success-500/20 dark:text-success-400">
-                Enabled
+            <SettingRow label="Login Email" desc="Registered account email identifier">
+              <span className="text-sm font-mono text-primary-700 dark:text-primary-300 font-semibold">{user?.email}</span>
+            </SettingRow>
+            
+            <SettingRow label="Login Status" desc="Current system security tier authorization">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                customerData?.status === 'Active' || !customerData?.status
+                  ? 'bg-success-100 text-success-800 dark:bg-success-500/20 dark:text-success-400'
+                  : 'bg-error-100 text-error-800 dark:bg-error-500/20 dark:text-error-400'
+              }`}>
+                {customerData?.status || 'Active'}
               </span>
             </SettingRow>
-            <SettingRow label="Last Login">
-              <span className="text-sm font-medium text-primary-900 dark:text-white">Recent</span>
+
+            <SettingRow label="Password Status" desc="Time of last credentials lifecycle modifications">
+              <span className="text-sm font-medium text-primary-900 dark:text-white flex items-center gap-1.5">
+                <KeyRound className="w-4 h-4 text-secondary-400" /> Managed / Secure
+              </span>
             </SettingRow>
-            <SettingRow label="Trusted Device Status">
-              <span className="text-sm font-medium text-primary-900 dark:text-white">Verified</span>
+
+            <SettingRow label="Two-Factor Authentication (2FA)" desc="Multi-factor token verification">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                customerData?.two_factor_enabled
+                  ? 'bg-success-100 text-success-800 dark:bg-success-500/20 dark:text-success-400'
+                  : 'bg-secondary-100 text-secondary-800 dark:bg-secondary-500/20 dark:text-secondary-400'
+              }`}>
+                {customerData?.two_factor_enabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </SettingRow>
+
+            <SettingRow label="Last Login" desc="Recent online authentication record">
+              <span className="text-sm font-medium text-primary-900 dark:text-white flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-secondary-400" /> Just Now
+              </span>
+            </SettingRow>
+
+            <SettingRow label="Last Activity" desc="Last recorded database handshake connection">
+              <span className="text-sm font-medium text-primary-900 dark:text-white flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-secondary-400" /> Active Session
+              </span>
             </SettingRow>
           </div>
         </Card>
       </motion.div>
-
-      {/* Notifications */}
-      <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }}>
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-accent-100 dark:bg-accent-500/15 flex items-center justify-center"><Bell className="w-5 h-5 text-accent-600 dark:text-accent-400" /></div>
-            <h3 className="font-serif text-lg font-bold text-primary-900 dark:text-white">Notifications</h3>
-          </div>
-          <SettingRow label="Email Alerts" desc="Receive account notifications via email"><Toggle on={emailAlerts} onClick={() => { const v = !emailAlerts; setEmailAlerts(v); localStorage.setItem('emailAlerts', v.toString()); }} /></SettingRow>
-          <SettingRow label="SMS Alerts" desc="Receive transaction alerts via text message"><Toggle on={smsAlerts} onClick={() => { const v = !smsAlerts; setSmsAlerts(v); localStorage.setItem('smsAlerts', v.toString()); }} /></SettingRow>
-          <SettingRow label="Transaction Alerts" desc="Get notified for every transaction"><Toggle on={txAlerts} onClick={() => { const v = !txAlerts; setTxAlerts(v); localStorage.setItem('txAlerts', v.toString()); }} /></SettingRow>
-        </Card>
-      </motion.div>
-
 
 
       {/* Theme */}
-      <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.3 }}>
+      <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.2 }}>
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-800/40 flex items-center justify-center">

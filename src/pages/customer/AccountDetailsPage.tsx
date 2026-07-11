@@ -4,7 +4,7 @@ import type { Account, Transaction } from '../../data/demoData';
 import { calculateAccountBalances } from '../../utils/calculations';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { formatCurrency } from '../../data/demoData';
+import { formatCurrency, formatTransactionDate } from '../../data/demoData';
 import { ArrowLeft, Send, Download, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -91,12 +91,14 @@ export function AccountDetailsPage() {
                   <div>
                     <p className="font-bold text-primary-900 dark:text-white">{tx.description}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-secondary-500">{new Date(tx.date).toLocaleDateString()}</span>
+                      <span className="text-xs text-secondary-500">{formatTransactionDate(tx.date)}</span>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-secondary-600 dark:text-secondary-300">
                         {tx.category}
                       </span>
-                      {tx.status === 'pending' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-warning-100 text-warning-700">Pending</span>
+                      {tx.status?.toLowerCase() === 'pending' ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-warning-100 text-warning-700 font-semibold">Pending</span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-500 font-semibold">Completed</span>
                       )}
                     </div>
                   </div>

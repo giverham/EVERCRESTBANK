@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabaseAdmin as supabase } from "../../../lib/supabase";
 import { Card } from "../../ui/Card";
 import { Button } from "../../ui/Button";
-import { Plus } from "lucide-react";
+import { Plus, Check, Loader2 } from "lucide-react";
+import { formatCurrency, formatTransactionDate } from "../../../data/demoData";
 
 export function TransactionsTab({ customerId }: { customerId: string }) {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -24,6 +25,21 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
     fetchData();
   }, [customerId]);
 
+  const triggerNotification = async (title: string, message: string, type: 'info' | 'warning' | 'success') => {
+    try {
+      await supabase.from('notifications').insert([{
+        customer_id: customerId,
+        title,
+        message,
+        type,
+        read: false,
+        date: new Date().toISOString().split('T')[0]
+      }]);
+    } catch (err) {
+      console.error('Failed to trigger automatic notification:', err);
+    }
+  };
+
   const handleSave = async () => {
     if (!editingTx) return;
     if (!editingTx.account_id) {
@@ -42,6 +58,10 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
     
     delete payload._dateInput;
     delete payload._timeInput;
+
+    if (!payload.reference_number) {
+      payload.reference_number = `REF-${Math.floor(10000000 + Math.random() * 90000000)}`;
+    }
 
     if (payload.id) {
       const { data: oldTx } = await supabase.from("transactions").select("*").eq("id", payload.id).single();
@@ -64,6 +84,11 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
             await supabase.from("accounts").update({ current_balance: finalBal, available_balance: finalBal }).eq("id", payload.account_id);
           }
         }
+        await triggerNotification(
+          "Transaction Modified",
+          `Your transaction of $${payload.amount} at ${payload.merchant || payload.description} was adjusted.`,
+          "info"
+        );
         setEditingTx(null);
         fetchData();
       } else {
@@ -81,6 +106,26 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
           const finalBal = payload.type === 'credit' ? acc.current_balance + payload.amount : acc.current_balance - payload.amount;
           await supabase.from("accounts").update({ current_balance: finalBal, available_balance: finalBal }).eq("id", payload.account_id);
         }
+        
+        // Trigger specific professional banking notifications based on type & category
+        const isCredit = payload.type === 'credit';
+        let notifTitle = isCredit ? "Deposit Received" : "Withdrawal Successful";
+        if (payload.category === 'Transfer') {
+          notifTitle = isCredit ? "Transfer Received" : "Transfer Sent";
+        } else if (payload.category === 'Salary') {
+          notifTitle = "Salary Credited";
+        } else if (payload.category === 'Loan') {
+          notifTitle = "Loan Approved";
+        } else if (payload.category === 'Card') {
+          notifTitle = "Card Payment";
+        }
+
+        await triggerNotification(
+          notifTitle,
+          `A ${payload.type} of $${payload.amount.toLocaleString()} was posted to your account for ${payload.merchant || payload.description}.`,
+          "success"
+        );
+
         setEditingTx(null);
         fetchData();
       } else {
@@ -100,6 +145,11 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
             const revBal = oldTx.type === 'credit' ? acc.current_balance - oldTx.amount : acc.current_balance + oldTx.amount;
             await supabase.from("accounts").update({ current_balance: revBal, available_balance: revBal }).eq("id", oldTx.account_id);
           }
+          await triggerNotification(
+            "Transaction Reversed",
+            `A transaction of $${oldTx.amount} was removed or reversed on your statement ledger.`,
+            "warning"
+          );
         }
         fetchData();
       } else {
@@ -113,8 +163,8 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-primary-900 dark:text-white">
-          Transactions
+        <h2 className="text-xl font-bold text-primary-900 dark:text-white font-serif">
+          Ledger Transaction Management
         </h2>
         <Button
           variant="primary"
@@ -125,9 +175,12 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
               status: "Completed",
               amount: 0,
               merchant: "",
+              description: "",
               category: "Other",
-              _dateInput: new Date().toISOString().split("T")[0],
-              _timeInput: new Date().toISOString().split("T")[1].slice(0,5),
+              running_balance: 0,
+              reference_number: `REF-${Math.floor(10000000 + Math.random() * 90000000)}`,
+              _dateInput: new Date().toLocaleDateString('sv-SE'),
+              _timeInput: new Date().toTimeString().slice(0, 5),
               account_id: accounts.length > 0 ? accounts[0].id : ""
             })
           }
@@ -138,12 +191,12 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
 
       {editingTx ? (
         <Card className="p-6">
-          <h3 className="text-lg font-bold mb-4">
-            {editingTx.id ? "Edit Transaction" : "New Transaction"}
+          <h3 className="text-lg font-bold mb-4 font-serif text-primary-900 dark:text-white">
+            {editingTx.id ? "Edit Transaction Details" : "New Transaction Entry"}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm block mb-1">Account</label>
+              <label className="text-sm font-semibold block mb-1">Account Selector</label>
               <select
                 value={editingTx.account_id || ""}
                 onChange={(e) => setEditingTx({ ...editingTx, account_id: e.target.value })}
@@ -155,34 +208,25 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
               </select>
             </div>
             <div>
-              <label className="text-sm block mb-1">Merchant / Description</label>
+              <label className="text-sm font-semibold block mb-1">Merchant / Recipient Name</label>
               <input
                 type="text"
-                value={editingTx.merchant || editingTx.description || ""}
-                onChange={(e) => setEditingTx({ ...editingTx, merchant: e.target.value, description: e.target.value })}
+                value={editingTx.merchant || ""}
+                onChange={(e) => setEditingTx({ ...editingTx, merchant: e.target.value })}
                 className="input-premium"
               />
             </div>
             <div>
-              <label className="text-sm block mb-1">Date</label>
+              <label className="text-sm font-semibold block mb-1">Transaction Description</label>
               <input
-                type="date"
-                value={editingTx._dateInput || (editingTx.date ? editingTx.date.split("T")[0] : "")}
-                onChange={(e) => setEditingTx({ ...editingTx, _dateInput: e.target.value })}
+                type="text"
+                value={editingTx.description || ""}
+                onChange={(e) => setEditingTx({ ...editingTx, description: e.target.value })}
                 className="input-premium"
               />
             </div>
             <div>
-              <label className="text-sm block mb-1">Time</label>
-              <input
-                type="time"
-                value={editingTx._timeInput || (editingTx.date && editingTx.date.includes("T") ? editingTx.date.split("T")[1].slice(0,5) : "")}
-                onChange={(e) => setEditingTx({ ...editingTx, _timeInput: e.target.value })}
-                className="input-premium"
-              />
-            </div>
-            <div>
-              <label className="text-sm block mb-1">Amount</label>
+              <label className="text-sm font-semibold block mb-1">Transaction Amount ($)</label>
               <input
                 type="number"
                 step="0.01"
@@ -192,27 +236,64 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
               />
             </div>
             <div>
-              <label className="text-sm block mb-1">Type</label>
+              <label className="text-sm font-semibold block mb-1">Date</label>
+              <input
+                type="date"
+                value={editingTx._dateInput || (editingTx.date ? editingTx.date.split("T")[0] : "")}
+                onChange={(e) => setEditingTx({ ...editingTx, _dateInput: e.target.value })}
+                className="input-premium"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold block mb-1">Time</label>
+              <input
+                type="time"
+                value={editingTx._timeInput || (editingTx.date && editingTx.date.includes("T") ? editingTx.date.split("T")[1].slice(0,5) : "")}
+                onChange={(e) => setEditingTx({ ...editingTx, _timeInput: e.target.value })}
+                className="input-premium"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold block mb-1">Credit / Debit Ledger Rule</label>
               <select
                 value={editingTx.type || "debit"}
                 onChange={(e) => setEditingTx({ ...editingTx, type: e.target.value })}
                 className="input-premium"
               >
-                <option value="debit">debit</option>
-                <option value="credit">credit</option>
+                <option value="debit">debit (Withdrawal/Charge)</option>
+                <option value="credit">credit (Deposit/Salary)</option>
               </select>
             </div>
             <div>
-              <label className="text-sm block mb-1">Category</label>
+              <label className="text-sm font-semibold block mb-1">Category Group</label>
               <input
                 type="text"
-                value={editingTx.category || ""}
+                value={editingTx.category || "Other"}
                 onChange={(e) => setEditingTx({ ...editingTx, category: e.target.value })}
                 className="input-premium"
               />
             </div>
             <div>
-              <label className="text-sm block mb-1">Status</label>
+              <label className="text-sm font-semibold block mb-1">Reference Number</label>
+              <input
+                type="text"
+                value={editingTx.reference_number || ""}
+                onChange={(e) => setEditingTx({ ...editingTx, reference_number: e.target.value })}
+                className="input-premium"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold block mb-1">Balance After Transaction ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={editingTx.running_balance || 0}
+                onChange={(e) => setEditingTx({ ...editingTx, running_balance: parseFloat(e.target.value) })}
+                className="input-premium"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold block mb-1">Posting Status</label>
               <select
                 value={editingTx.status || "Completed"}
                 onChange={(e) => setEditingTx({ ...editingTx, status: e.target.value })}
@@ -223,53 +304,66 @@ export function TransactionsTab({ customerId }: { customerId: string }) {
               </select>
             </div>
           </div>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-6 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setEditingTx(null)}>
               Cancel
             </Button>
             <Button variant="primary" onClick={handleSave}>
-              Save Transaction
+              Save Transaction Entry
             </Button>
           </div>
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-primary-50 dark:bg-primary-900/30">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500">Account</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500">Merchant</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-secondary-500">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-secondary-200 dark:divide-secondary-800">
-              {transactions.map((tx) => {
-                const acc = accounts.find(a => a.id === tx.account_id);
-                return (
-                  <tr key={tx.id} className="hover:bg-secondary-50 dark:hover:bg-secondary-800/30">
-                    <td className="px-4 py-3 text-sm">{tx.date?.split("T")[0]}</td>
-                    <td className="px-4 py-3 text-sm">{acc ? acc.name : tx.account_id}</td>
-                    <td className="px-4 py-3 text-sm">{tx.merchant || tx.description}</td>
-                    <td className="px-4 py-3 text-sm font-bold">${tx.amount?.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={tx.type === "credit" ? "text-success-600" : "text-secondary-600"}>{tx.type}</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">{tx.status}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="secondary" size="sm" onClick={() => setEditingTx(tx)} className="mr-2">Edit</Button>
-                      <Button variant="danger" size="sm" onClick={() => handleDelete(tx.id)}>Delete</Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-primary-50 dark:bg-primary-900/30">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Posting Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Account</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Merchant</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Reference</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Balance After</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold text-secondary-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-secondary-200 dark:divide-secondary-800">
+                {transactions.map((tx) => {
+                  const acc = accounts.find(a => a.id === tx.account_id);
+                  return (
+                    <tr key={tx.id} className="hover:bg-secondary-50 dark:hover:bg-secondary-800/30">
+                      <td className="px-4 py-3 text-sm">{formatTransactionDate(tx.date)}</td>
+                      <td className="px-4 py-3 text-sm font-semibold">{acc ? acc.name : tx.account_id}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="font-semibold block text-primary-900 dark:text-white">{tx.merchant}</span>
+                        <span className="text-xs text-secondary-400 block">{tx.description}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-xs text-secondary-500">{tx.reference_number || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-primary-900 dark:text-white">${tx.amount?.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm uppercase">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === "credit" ? "bg-success-100 text-success-700" : "bg-error-100 text-error-700"}`}>{tx.type}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-semibold text-secondary-600">${(tx.running_balance || 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tx.status?.toLowerCase() === "completed" ? "bg-primary-100 text-primary-700" : "bg-warning-100 text-warning-700"}`}>{tx.status}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <Button variant="secondary" size="sm" onClick={() => setEditingTx(tx)}>Edit</Button>
+                          <Button variant="danger" size="sm" onClick={() => handleDelete(tx.id)}>Delete</Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           {transactions.length === 0 && (
-            <div className="p-4 text-center text-secondary-500">No transactions found.</div>
+            <div className="p-8 text-center text-secondary-500 font-medium">No transactions found in database. Add entry above or run ledger backfill.</div>
           )}
         </Card>
       )}

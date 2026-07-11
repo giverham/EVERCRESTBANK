@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Plus, ArrowUpRight, ArrowDownRight, MessageSquare, X, Building2, Globe2 } from 'lucide-react';
+import { Eye, EyeOff, Plus, ArrowUpRight, ArrowDownRight, MessageSquare, X, Building2 } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -70,15 +70,50 @@ export function AccountsPage() {
                 <div className="p-6 gradient-primary text-white">
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <Badge variant="accent">{acc.type}</Badge>
                         <Badge variant="neutral" className="bg-white/10 text-white border border-white/20">{acc.currency}</Badge>
+                        {acc.is_fixed_savings && (
+                          <Badge variant="warning" className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">🏦 Fixed Savings</Badge>
+                        )}
+                        {acc.is_investment && (
+                          <Badge variant="primary" className="bg-blue-500/20 text-blue-300 border border-blue-500/30">📈 Investment</Badge>
+                        )}
+                        {acc.status === 'Locked' && (
+                          <Badge variant="error" className="bg-red-500/20 text-red-300 border border-red-500/30">🔒 Locked</Badge>
+                        )}
+                        {acc.status === 'Frozen' && (
+                          <Badge variant="error" className="bg-blue-400/20 text-blue-300 border border-blue-400/30">❄ Frozen</Badge>
+                        )}
+                        {acc.status === 'Restricted' && (
+                          <Badge variant="error" className="bg-orange-500/20 text-orange-300 border border-orange-500/30">⚠ Restricted</Badge>
+                        )}
+                        {acc.status === 'Dormant' && (
+                          <Badge variant="neutral" className="bg-gray-500/20 text-gray-300 border border-gray-500/30">💤 Dormant</Badge>
+                        )}
+                        {acc.status === 'Under Review' && (
+                          <Badge variant="warning" className="bg-purple-500/20 text-purple-300 border border-purple-500/30">🔍 Under Review</Badge>
+                        )}
                       </div>
                       <h3 className="font-serif text-xl font-bold">{acc.name}</h3>
                     </div>
                     <div className="text-left md:text-right">
-                      <p className="text-sm text-secondary-200">Available Balance</p>
-                      <p className="text-3xl font-bold">{formatCurrency(available)}</p>
+                      {acc.is_fixed_savings ? (
+                        <>
+                          <p className="text-sm text-secondary-200">Locked Balance</p>
+                          <p className="text-3xl font-bold">{formatCurrency(current)}</p>
+                        </>
+                      ) : acc.is_investment ? (
+                        <>
+                          <p className="text-sm text-secondary-200">Portfolio Value</p>
+                          <p className="text-3xl font-bold">{formatCurrency(current)}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm text-secondary-200">Available Balance</p>
+                          <p className="text-3xl font-bold">{formatCurrency(available)}</p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -196,19 +231,6 @@ export function AccountsPage() {
                     </div>
                   </div>
 
-                  {/* International Wire */}
-                  <div className="p-5 rounded-xl bg-secondary-50 dark:bg-secondary-800/30 border border-secondary-200 dark:border-secondary-700">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Globe2 className="w-5 h-5 text-success-600 dark:text-success-400" />
-                      <h3 className="font-bold text-primary-900 dark:text-white">International Wire</h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                      <div><span className="text-secondary-500 block mb-0.5">SWIFT Code</span><span className="font-mono font-medium">{(selectedAccountForDeposit as any).swift_code || 'N/A'}</span></div>
-                      <div><span className="text-secondary-500 block mb-0.5">Bank Address</span><span className="font-medium">{(selectedAccountForDeposit as any).bank_address || 'N/A'}</span></div>
-                      <div><span className="text-secondary-500 block mb-0.5">Beneficiary</span><span className="font-medium">{(selectedAccountForDeposit as any).beneficiary || 'N/A'}</span></div>
-                      <div><span className="text-secondary-500 block mb-0.5">Country</span><span className="font-medium">United States</span></div>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>

@@ -5,7 +5,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { LinkButton } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { siteConfig } from '../../config/siteConfig';
+import { useWebsite } from '../../context/WebsiteContext';
 
 const fadeUp = {
   initial: { opacity: 0, y: 30 },
@@ -15,6 +15,7 @@ const fadeUp = {
 };
 
 export function FAQPage() {
+  const { settings: siteConfig } = useWebsite();
   const [openId, setOpenId] = useState<string | null>('Accounts-0');
 
   const toggle = (id: string) => setOpenId(openId === id ? null : id);

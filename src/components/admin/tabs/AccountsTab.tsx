@@ -191,20 +191,7 @@ export function AccountsTab({ customerId }: { customerId: string }) {
                 className="input-premium"
               />
             </div>{" "}
-            <div>
-              <label className="text-sm block mb-1">SWIFT Code</label>
-              <input
-                type="text"
-                value={editingAccount.swift_code || ""}
-                onChange={(e) =>
-                  setEditingAccount({
-                    ...editingAccount,
-                    swift_code: e.target.value,
-                  })
-                }
-                className="input-premium"
-              />
-            </div>{" "}
+
             <div>
               <label className="text-sm block mb-1">Beneficiary</label>
               <input
@@ -234,6 +221,69 @@ export function AccountsTab({ customerId }: { customerId: string }) {
                   });
                 }}
                 className="input-premium"
+              />
+            </div>
+            <div>
+              <label className="text-sm block mb-1">Account Status</label>
+              <select
+                value={editingAccount.status || "Active"}
+                onChange={(e) =>
+                  setEditingAccount({ ...editingAccount, status: e.target.value })
+                }
+                className="input-premium"
+              >
+                <option>Active</option>
+                <option>Locked</option>
+                <option>Frozen</option>
+                <option>Restricted</option>
+                <option>Dormant</option>
+                <option>Under Review</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 md:pt-6">
+              <input
+                type="checkbox"
+                id="is_fixed_savings"
+                checked={!!editingAccount.is_fixed_savings}
+                onChange={(e) =>
+                  setEditingAccount({ ...editingAccount, is_fixed_savings: e.target.checked })
+                }
+                className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500 w-4 h-4"
+              />
+              <label htmlFor="is_fixed_savings" className="text-sm font-medium text-primary-900 dark:text-white">Fixed Savings Account (Locks Transfers)</label>
+            </div>
+            <div className="flex items-center gap-2 md:pt-6">
+              <input
+                type="checkbox"
+                id="is_investment"
+                checked={!!editingAccount.is_investment}
+                onChange={(e) =>
+                  setEditingAccount({ ...editingAccount, is_investment: e.target.checked })
+                }
+                className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500 w-4 h-4"
+              />
+              <label htmlFor="is_investment" className="text-sm font-medium text-primary-900 dark:text-white">Investment Account (Locks Transfers)</label>
+            </div>
+            <div>
+              <label className="text-sm block mb-1">Maturity Date</label>
+              <input
+                type="date"
+                value={editingAccount.maturity_date ? editingAccount.maturity_date.split('T')[0] : ""}
+                onChange={(e) =>
+                  setEditingAccount({ ...editingAccount, maturity_date: e.target.value ? new Date(e.target.value).toISOString() : null })
+                }
+                className="input-premium"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm block mb-1">Internal Notes</label>
+              <textarea
+                value={editingAccount.internal_notes || ""}
+                onChange={(e) =>
+                  setEditingAccount({ ...editingAccount, internal_notes: e.target.value })
+                }
+                className="input-premium h-20 w-full resize-none"
+                placeholder="Write any administrative restriction details or notes here..."
               />
             </div>
           </div>{" "}
@@ -271,6 +321,18 @@ export function AccountsTab({ customerId }: { customerId: string }) {
                 <p className="text-sm text-secondary-500 mb-1">
                   Account: {acc.number}
                 </p>{" "}
+                <div className="flex flex-wrap gap-1 mt-1 mb-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 dark:bg-secondary-800 text-secondary-700 dark:text-secondary-300">{acc.type}</span>
+                  {acc.status && acc.status !== 'Active' && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400">Status: {acc.status}</span>
+                  )}
+                  {acc.is_fixed_savings && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">Fixed Savings</span>
+                  )}
+                  {acc.is_investment && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400">Investment</span>
+                  )}
+                </div>
                 <p className="text-sm text-secondary-500">
                   Routing: {acc.routing}
                 </p>{" "}

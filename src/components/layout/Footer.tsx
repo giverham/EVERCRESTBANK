@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
-import { siteConfig } from '../../config/siteConfig';
+import { useWebsite } from '../../context/WebsiteContext';
 
 export function Footer() {
+  const { settings: siteConfig } = useWebsite();
   const year = new Date().getFullYear();
 
   return (

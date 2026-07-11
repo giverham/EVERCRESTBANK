@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { siteConfig } from '../../config/siteConfig';
+import { useWebsite } from '../../context/WebsiteContext';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { LinkButton } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -24,6 +24,7 @@ const fadeUp = {
 };
 
 export function HomePage() {
+  const { settings: siteConfig } = useWebsite();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const allFaqs = siteConfig.faqs.flatMap((c) => c.items).slice(0, 6);
 

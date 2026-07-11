@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Wallet, ArrowLeftRight, CreditCard, FileText,
-  Bell, User, Settings, Menu, X, LogOut, Moon, Sun, ChevronDown,
+  User, Settings, Menu, X, LogOut, Moon, Sun, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -15,7 +15,6 @@ const navItems = [
   { label: 'Transactions', href: '/dashboard/transactions', icon: ArrowLeftRight },
   { label: 'Cards', href: '/dashboard/cards', icon: CreditCard },
   { label: 'Statements', href: '/dashboard/statements', icon: FileText },
-  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   { label: 'Profile', href: '/dashboard/profile', icon: User },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
@@ -156,10 +155,6 @@ export function CustomerDashboardLayout() {
               >
                 {theme.mode === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </button>
-              <Link to="/dashboard/notifications" className="p-2.5 rounded-lg text-secondary-600 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-800 relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-500 rounded-full" />
-              </Link>
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}

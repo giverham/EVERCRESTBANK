@@ -14,7 +14,6 @@ import { TransactionsTab } from './tabs/TransactionsTab';
 import { StatementsTab } from './tabs/StatementsTab';
 import { NotificationsTab } from './tabs/NotificationsTab';
 import { AnalyticsTab } from './tabs/AnalyticsTab';
-import { ExtendedProfileTab } from './tabs/ExtendedProfileTab';
 import { SettingsTab } from './tabs/SettingsTab';
 
 interface CustomerManagementConsoleProps {
@@ -30,7 +29,6 @@ const tabs = [
   { id: 'statements', label: 'Statements', icon: FileText },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'extended', label: 'Extended Profile', icon: ShieldCheck },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -68,7 +66,6 @@ export function CustomerManagementConsole({ customerId, onClose }: CustomerManag
       case 'statements': return <StatementsTab customerId={customerId} />;
       case 'notifications': return <NotificationsTab customerId={customerId} />;
       case 'analytics': return <AnalyticsTab customerId={customerId} />;
-      case 'extended': return <ExtendedProfileTab customer={customer} onUpdate={fetchCustomer} />;
       case 'settings': return <SettingsTab customerId={customerId} />;
       default: return null;
     }

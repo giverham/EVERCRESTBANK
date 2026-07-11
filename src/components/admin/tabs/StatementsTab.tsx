@@ -35,19 +35,40 @@ export function StatementsTab({ customerId }: { customerId: string }) {
   const [selectedMonthOffset, setSelectedMonthOffset] = useState<number>(0);
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [brandingSettings, setBrandingSettings] = useState<any>({
+    bankName: 'Everest Bank',
+    bankWebsite: 'www.everestbank.com',
+    bankPhone: '1-800-555-0199',
+    bankEmail: 'support@everestbank.com',
+    logoUrl: 'https://images.unsplash.com/photo-1501167786227-4cba60f6d58f?auto=format&fit=crop&w=150&h=150&q=80',
+    sealUrl: 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=150&h=150&q=80',
+    signatureUrl: 'https://upload.wikimedia.org/wikipedia/commons/f/f8/Signature_of_John_Hancock.svg',
+    footerText: 'Member FDIC. Equal Housing Lender. This statement is computer generated.',
+    disclaimer: 'Please report any discrepancies within 60 days.',
+    watermark: 'EVEREST BANK OFFICIAL ACCOUNT STATEMENT CONFIDENTIAL',
+    dateFormat: 'MMM DD, YYYY',
+    themeColor: '#1e293b'
+  });
 
-  // Load customer accounts, transactions, and profile
+  // Load customer accounts, transactions, profile, and branding settings
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: cust } = await supabase.from('customers').select('*').eq('id', customerId).single();
-      if (cust) setCustomer(cust);
+      const [custRes, accsRes, settingsRes] = await Promise.all([
+        supabase.from('customers').select('*').eq('id', customerId).single(),
+        supabase.from('accounts').select('*').eq('customer_id', customerId),
+        supabase.from('settings').select('*').eq('key', 'statement_settings').single()
+      ]);
 
-      const { data: accs } = await supabase.from('accounts').select('*').eq('customer_id', customerId);
-      if (accs) {
-        setAccounts(accs);
-        if (accs.length > 0) {
-          const accIds = accs.map(a => a.id);
+      if (custRes.data) setCustomer(custRes.data);
+      if (settingsRes.data && settingsRes.data.value) {
+        setBrandingSettings({ ...brandingSettings, ...settingsRes.data.value });
+      }
+
+      if (accsRes.data) {
+        setAccounts(accsRes.data);
+        if (accsRes.data.length > 0) {
+          const accIds = accsRes.data.map(a => a.id);
           const { data: txs } = await supabase.from('transactions').select('*').in('account_id', accIds);
           if (txs) setTransactions(txs);
         }
@@ -58,143 +79,151 @@ export function StatementsTab({ customerId }: { customerId: string }) {
   }, [customerId]);
 
   // Generate rolling 12 months array
-  const rollingMonths = useMemo(() => {
-    const list = [];
+  const monthsList = useMemo(() => {
+    const months = [];
     const today = new Date();
     for (let i = 0; i < 12; i++) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      list.push({
-        offset: i,
-        label: d.toLocaleString('default', { month: 'long', year: 'numeric' }),
-        startDate: new Date(d.getFullYear(), d.getMonth(), 1),
-        endDate: new Date(d.getFullYear(), d.getMonth() + 1, 0)
-      });
+      const label = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const startDate = new Date(d.getFullYear(), d.getMonth(), 1);
+      const endDate = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+      months.push({ label, startDate, endDate, offset: i });
     }
-    return list;
+    return months;
   }, []);
 
-  const activeMonth = rollingMonths[selectedMonthOffset] || rollingMonths[0];
+  const activeMonth = monthsList[selectedMonthOffset];
+
+  // Helper date formatter
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    
+    let normalizedStr = dateStr;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      normalizedStr = `${dateStr}T12:00:00`;
+    } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dateStr)) {
+      normalizedStr = `${dateStr}:00`;
+    } else if (dateStr.endsWith('Z')) {
+      normalizedStr = dateStr.slice(0, -1);
+    }
+    
+    const d = new Date(normalizedStr);
+    if (isNaN(d.getTime())) return dateStr;
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[d.getMonth()];
+    const day = d.getDate();
+    const year = d.getFullYear();
+    
+    let hours = d.getHours();
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    
+    return `${month} ${day}, ${year} • ${hours}:${minutes} ${ampm}`;
+  };
 
   const processedData = useMemo(() => {
-    if (accounts.length === 0) return { filteredTxs: [], summary: { openingBalance: 0, closingBalance: 0, totalDeposits: 0, totalWithdrawals: 0, netChange: 0, txCount: 0 } };
+    if (accounts.length === 0 || !activeMonth) {
+      return { filteredTxs: [], summary: { openingBalance: 0, closingBalance: 0, totalDeposits: 0, totalWithdrawals: 0 } };
+    }
 
     const selectedAccId = selectedAccount === 'all' ? accounts[0]?.id : selectedAccount;
     const account = accounts.find(a => a.id === selectedAccId) || accounts[0];
-    if (!account) return { filteredTxs: [], summary: { openingBalance: 0, closingBalance: 0, totalDeposits: 0, totalWithdrawals: 0, netChange: 0, txCount: 0 } };
+    const workingBalance = Number(account?.current_balance || 0);
 
-    const accTxs = transactions
-      .filter(tx => tx.account_id === selectedAccId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id.localeCompare(a.id));
-
-    let workingBalance = account.current_balance || 0;
-    const txsWithBalances = accTxs.map(tx => {
-      const balanceAfterTx = workingBalance;
-      if (tx.type === 'credit') {
-        workingBalance = parseFloat((workingBalance - tx.amount).toFixed(2));
-      } else {
-        workingBalance = parseFloat((workingBalance + tx.amount).toFixed(2));
-      }
-      return { ...tx, running_balance: balanceAfterTx };
-    });
-
-    const startLimit = activeMonth.startDate;
-    const endLimit = activeMonth.endDate;
-
-    const filtered = txsWithBalances.filter(tx => {
+    const filtered = transactions.filter(tx => {
+      if (selectedAccount !== 'all' && tx.account_id !== selectedAccount) return false;
       const txDate = new Date(tx.date);
-      return txDate >= startLimit && txDate <= endLimit;
+      return txDate >= activeMonth.startDate && txDate <= activeMonth.endDate;
     });
 
-    let totalDeposits = 0;
-    let totalWithdrawals = 0;
-    filtered.forEach(tx => {
-      if (tx.type === 'credit') totalDeposits += tx.amount;
-      else totalWithdrawals += tx.amount;
-    });
+    const totalDeposits = filtered.filter(tx => tx.type === 'credit').reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const totalWithdrawals = filtered.filter(tx => tx.type === 'debit').reduce((sum, tx) => sum + Number(tx.amount), 0);
 
-    let closingBalance = filtered.length > 0 ? filtered[0].running_balance : workingBalance;
     let openingBalance = filtered.length > 0 ? filtered[filtered.length - 1].running_balance - (filtered[filtered.length - 1].type === 'credit' ? filtered[filtered.length - 1].amount : -filtered[filtered.length - 1].amount) : workingBalance;
+    let closingBalance = workingBalance;
 
     return {
       filteredTxs: filtered,
       summary: {
-        openingBalance: parseFloat(openingBalance.toFixed(2)),
-        closingBalance: parseFloat(closingBalance.toFixed(2)),
+        openingBalance,
+        closingBalance,
         totalDeposits,
         totalWithdrawals,
-        netChange: totalDeposits - totalWithdrawals,
-        txCount: filtered.length
       }
     };
   }, [transactions, accounts, selectedAccount, activeMonth]);
 
   const generatePDF = () => {
-    const savedSettings = localStorage.getItem('statement_settings');
-    const branding = savedSettings ? JSON.parse(savedSettings) : {
-      bankName: 'Everest Bank',
-      bankWebsite: 'www.everestbank.com',
-      bankPhone: '1-800-555-0199',
-      bankEmail: 'support@everestbank.com',
-      iban: 'US89 EVER 1234 5678 9012 34',
-      swift: 'EVERUS33',
-      logoUrl: 'https://images.unsplash.com/photo-1501167786227-4cba60f6d58f?auto=format&fit=crop&w=150&h=150&q=80',
-      sealUrl: 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=150&h=150&q=80',
-      signatureUrl: 'https://upload.wikimedia.org/wikipedia/commons/f/f8/Signature_of_John_Hancock.svg',
-      footerText: 'Member FDIC. Equal Housing Lender. This statement is computer generated.',
-      disclaimer: 'Please report any discrepancies within 60 days.',
-      watermark: 'EVEREST BANK OFFICIAL ACCOUNT STATEMENT CONFIDENTIAL',
-    };
+    const doc = new jsPDF({
+      orientation: brandingSettings.layoutOrientation === 'landscape' ? 'landscape' : 'portrait',
+      format: brandingSettings.paperSize === 'letter' ? 'letter' : 'a4'
+    });
 
-    const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
 
-    // Draw watermark
+    // Watermark Opacity and Drawing
     doc.saveGraphicsState();
     doc.setFontSize(16);
     doc.setTextColor(220, 225, 230);
     doc.setFont("helvetica", "bold");
-    doc.text(branding.watermark, pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+    doc.text(brandingSettings.watermark || 'CONFIDENTIAL STATEMENT', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
     doc.restoreGraphicsState();
 
-    // Bank Header
-    doc.setFontSize(22);
+    // Helper image safe drawing
+    const addImageToDoc = (url: string, x: number, y: number, w: number, h: number) => {
+      try {
+        if (url && (url.startsWith('data:image/') || url.startsWith('http'))) {
+          doc.addImage(url, 'PNG', x, y, w, h);
+        }
+      } catch (err) {
+        console.warn("Failed to embed image inside PDF builder:", err);
+      }
+    };
+
+    // Draw Bank Logo
+    if (brandingSettings.logoUrl) {
+      addImageToDoc(brandingSettings.logoUrl, 14, 12, 18, 18);
+    }
+
+    // Bank Header Information
+    doc.setFontSize(18);
     doc.setTextColor(30, 41, 59);
     doc.setFont("times", "bold");
-    doc.text(branding.bankName, 14, 22);
+    doc.text(brandingSettings.bankName, brandingSettings.logoUrl ? 36 : 14, 20);
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 116, 139);
     doc.text([
-      branding.bankWebsite,
-      `Phone: ${branding.bankPhone}`,
-      `Email: ${branding.bankEmail}`,
-      branding.swift ? `SWIFT: ${branding.swift}` : '',
-      branding.iban ? `IBAN: ${branding.iban}` : ''
-    ].filter(Boolean), 14, 28);
+      brandingSettings.bankWebsite,
+      `Phone: ${brandingSettings.bankPhone}`,
+      `Email: ${brandingSettings.bankEmail}`,
+    ].filter(Boolean), brandingSettings.logoUrl ? 36 : 14, 25);
 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 41, 59);
-    doc.text("ACCOUNT STATEMENT", pageWidth - 14, 22, { align: 'right' });
+    doc.text("ACCOUNT STATEMENT", pageWidth - 14, 20, { align: 'right' });
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 116, 139);
     doc.text([
-      `Statement Period: ${activeMonth.startDate.toLocaleDateString()} - ${activeMonth.endDate.toLocaleDateString()}`,
-      `Generation Date: ${new Date().toLocaleDateString()}`,
       `Page: 1 of 1`
-    ], pageWidth - 14, 28, { align: 'right' });
+    ], pageWidth - 14, 26, { align: 'right' });
 
+    doc.setDrawColor(226, 232, 240);
     doc.line(14, 45, pageWidth - 14, 45);
 
-    // Customer
+    // Customer Detail and Account Row
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(51, 65, 85);
-    doc.text("PREPARED FOR:", 14, 52);
+    doc.text("ACCOUNT STATEMENT FOR:", 14, 52);
 
     doc.setFont("helvetica", "normal");
     doc.text([
@@ -206,14 +235,30 @@ export function StatementsTab({ customerId }: { customerId: string }) {
     const account = accounts.find(a => a.id === selectedAccId) || accounts[0];
 
     doc.setFont("helvetica", "bold");
-    doc.text("ACCOUNT DETAILS:", pageWidth - 14, 52, { align: 'right' });
+    doc.text("ACCOUNT DETAILS:", 115, 52);
 
-    doc.setFont("helvetica", "normal");
-    doc.text([
-      `Account Name: ${account?.name || 'Primary Checking'}`,
-      `Account Number: ${account?.number || 'N/A'}`,
-      `Routing Number: ${account?.routing || 'N/A'}`,
-    ], pageWidth - 14, 58, { align: 'right' });
+    const finalAccountNum = brandingSettings.accountNumber || account?.number || '********4582';
+    const accountType = account?.type || 'Checking';
+    const rPeriod = `${activeMonth.startDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })} - ${activeMonth.endDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+    const rDate = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+    const accountDetails = [
+      ["Account Number", finalAccountNum],
+      ["Routing Number", account?.routing || brandingSettings.routing || '121000248'],
+      ["Statement Period", rPeriod],
+      ["Statement Date", rDate],
+      ["Account Type", accountType]
+    ];
+
+    let startY = 58;
+    const rowHeight = 5.2; // Spaced out elegantly
+    accountDetails.forEach(([label, val]) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(label + ":", 115, startY);
+      doc.setFont("helvetica", "normal");
+      doc.text(val, 150, startY);
+      startY += rowHeight;
+    });
 
     // Summary Box
     doc.setDrawColor(203, 213, 225);
@@ -236,24 +281,31 @@ export function StatementsTab({ customerId }: { customerId: string }) {
 
     // Transactions Table
     const tableData = processedData.filteredTxs.map(tx => [
-      tx.date,
+      formatDate(tx.date),
       tx.description,
       tx.type === 'credit' ? `+${formatCurrency(tx.amount)}` : '',
       tx.type === 'debit' ? `-${formatCurrency(tx.amount)}` : '',
       formatCurrency(tx.running_balance)
     ]).reverse();
 
+    // Convert hex color to RGB
+    const hexToRgb = (hex: string) => {
+      const match = hex.replace('#','').match(/.{1,2}/g);
+      if (match) return [parseInt(match[0], 16), parseInt(match[1], 16), parseInt(match[2], 16)];
+      return [30, 41, 59];
+    };
+
     autoTable(doc, {
       startY: 112,
       head: [['Post Date', 'Description', 'Deposits/Credits', 'Withdrawals/Debits', 'Ending Balance']],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+      headStyles: { fillColor: hexToRgb(brandingSettings.themeColor), textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       styles: { fontSize: 8, cellPadding: 3.5, textColor: [51, 65, 85] },
       columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 70 },
+        0: { cellWidth: 32 },
+        1: { cellWidth: 63 },
         2: { cellWidth: 32, halign: 'right' },
         3: { cellWidth: 32, halign: 'right' },
         4: { cellWidth: 30, halign: 'right' }
@@ -262,23 +314,27 @@ export function StatementsTab({ customerId }: { customerId: string }) {
 
     const finalY = (doc as any).lastAutoTable.finalY + 15;
     if (finalY < pageHeight - 45) {
-      doc.setFontSize(8.5);
-      doc.setFont("helvetica", "bold");
-      doc.text("Authorized Signature", 14, finalY);
-      doc.line(14, finalY + 14, 74, finalY + 14);
+      if (brandingSettings.signatureUrl) {
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "bold");
+        doc.text("Authorized Signature", 14, finalY);
+        addImageToDoc(brandingSettings.signatureUrl, 14, finalY + 2, 40, 10);
+        doc.line(14, finalY + 14, 74, finalY + 14);
+      }
 
-      doc.text("Official Stamp", 110, finalY);
-      doc.rect(110, finalY + 2, 25, 12);
-      doc.setFontSize(6);
-      doc.setFont("helvetica", "normal");
-      doc.text("OFFICIAL SEAL", 112, finalY + 9);
+      if (brandingSettings.sealUrl) {
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "bold");
+        doc.text("Official Stamp", 110, finalY);
+        addImageToDoc(brandingSettings.sealUrl, 110, finalY + 2, 16, 16);
+      }
     }
 
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(148, 163, 184);
-    doc.text(branding.footerText, pageWidth / 2, pageHeight - 16, { align: 'center' });
-    doc.text(branding.disclaimer, pageWidth / 2, pageHeight - 11, { align: 'center' });
+    doc.text(brandingSettings.footerText, pageWidth / 2, pageHeight - 16, { align: 'center' });
+    doc.text(brandingSettings.disclaimer, pageWidth / 2, pageHeight - 11, { align: 'center' });
 
     doc.save(`Statement_${customer?.first_name}_${activeMonth.label.replace(/ /g, '_')}.pdf`);
   };
@@ -289,74 +345,93 @@ export function StatementsTab({ customerId }: { customerId: string }) {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-primary-900 dark:text-white">Customer Statement Ledger</h2>
-          <p className="text-sm text-secondary-500">Generate real-time rolling 12-month statements for this customer.</p>
+          <h2 className="text-xl font-bold text-primary-900 dark:text-white font-serif">Official Statements</h2>
+          <p className="text-sm text-secondary-500 mt-1">Select account and month to generate and review dynamic secure PDF records.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedAccount}
+            onChange={(e) => setSelectedAccount(e.target.value)}
+            className="input-premium py-1.5 text-xs max-w-[180px]"
+          >
+            <option value="all">All Accounts</option>
+            {accounts.map(acc => (
+              <option key={acc.id} value={acc.id}>{acc.name} (...{acc.number.slice(-4)})</option>
+            ))}
+          </select>
+          <select
+            value={selectedMonthOffset}
+            onChange={(e) => setSelectedMonthOffset(Number(e.target.value))}
+            className="input-premium py-1.5 text-xs max-w-[180px]"
+          >
+            {monthsList.map((m) => (
+              <option key={m.offset} value={m.offset}>{m.label}</option>
+            ))}
+          </select>
+          <Button variant="primary" size="sm" onClick={generatePDF}>
+            <Download className="w-4 h-4 mr-2" /> Download PDF
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="p-5 space-y-4">
-          <h3 className="font-bold text-md text-primary-900 dark:text-white">Branded PDF Generator</h3>
-          <div>
-            <label className="text-xs font-semibold text-secondary-500 block mb-1">Account</label>
-            <select 
-              className="w-full input-premium cursor-pointer"
-              value={selectedAccount} 
-              onChange={(e) => setSelectedAccount(e.target.value)}
-            >
-              {accounts.length > 0 && <option value="all">All Accounts</option>}
-              {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.number})</option>)}
-            </select>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="p-5 md:col-span-1 border border-secondary-200 dark:border-secondary-800 text-center">
+          <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center mx-auto mb-2 text-primary-700 dark:text-primary-300">
+            <Layers className="w-5 h-5" />
           </div>
-
-          <div>
-            <label className="text-xs font-semibold text-secondary-500 block mb-1">Select Month Period</label>
-            <select 
-              className="w-full input-premium cursor-pointer"
-              value={selectedMonthOffset} 
-              onChange={(e) => setSelectedMonthOffset(parseInt(e.target.value))}
-            >
-              {rollingMonths.map((m) => (
-                <option key={m.offset} value={m.offset}>{m.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <Button variant="primary" className="w-full justify-center" onClick={generatePDF}>
-            <Download className="w-4 h-4 mr-2" /> Download Statement
-          </Button>
+          <p className="text-xs font-bold text-secondary-400 uppercase">Starting Balance</p>
+          <p className="text-xl font-bold text-primary-900 dark:text-white mt-1">{formatCurrency(processedData.summary.openingBalance)}</p>
         </Card>
-
-        {/* Live Statement Metric Cards */}
-        <Card className="p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Layers className="w-5 h-5 text-accent-500" />
-              <h4 className="font-bold text-sm text-primary-900 dark:text-white">Period Overview</h4>
-            </div>
-            <p className="text-xs text-secondary-400 mb-4">{activeMonth.label} ({activeMonth.startDate.toLocaleDateString()} - {activeMonth.endDate.toLocaleDateString()})</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-secondary-50 dark:bg-secondary-900 p-2.5 rounded-lg">
-                <span className="text-[10px] text-secondary-400 uppercase tracking-wider block">Opening Balance</span>
-                <span className="text-sm font-bold text-primary-900 dark:text-white">{formatCurrency(processedData.summary.openingBalance)}</span>
-              </div>
-              <div className="bg-secondary-50 dark:bg-secondary-900 p-2.5 rounded-lg">
-                <span className="text-[10px] text-secondary-400 uppercase tracking-wider block">Closing Balance</span>
-                <span className="text-sm font-bold text-primary-900 dark:text-white">{formatCurrency(processedData.summary.closingBalance)}</span>
-              </div>
-              <div className="bg-success-500/5 p-2.5 rounded-lg">
-                <span className="text-[10px] text-success-500 uppercase tracking-wider block">Credits</span>
-                <span className="text-sm font-bold text-success-600 dark:text-success-400">+{formatCurrency(processedData.summary.totalDeposits)}</span>
-              </div>
-              <div className="bg-error-500/5 p-2.5 rounded-lg">
-                <span className="text-[10px] text-error-500 uppercase tracking-wider block">Debits</span>
-                <span className="text-sm font-bold text-error-600 dark:text-error-400">-{formatCurrency(processedData.summary.totalWithdrawals)}</span>
-              </div>
-            </div>
+        <Card className="p-5 md:col-span-1 border border-secondary-200 dark:border-secondary-800 text-center">
+          <div className="w-10 h-10 rounded-lg bg-success-100 dark:bg-success-900/40 flex items-center justify-center mx-auto mb-2 text-success-700 dark:text-success-300">
+            <Layers className="w-5 h-5" />
           </div>
-          <p className="text-[11px] text-secondary-400 mt-4 italic">Automatically updates whenever account transactions are modified, deleted, or backdated.</p>
+          <p className="text-xs font-bold text-secondary-400 uppercase">Total Deposits</p>
+          <p className="text-xl font-bold text-success-600 dark:text-success-400 mt-1">+{formatCurrency(processedData.summary.totalDeposits)}</p>
+        </Card>
+        <Card className="p-5 md:col-span-1 border border-secondary-200 dark:border-secondary-800 text-center">
+          <div className="w-10 h-10 rounded-lg bg-error-100 dark:bg-error-900/40 flex items-center justify-center mx-auto mb-2 text-error-700 dark:text-error-300">
+            <Layers className="w-5 h-5" />
+          </div>
+          <p className="text-xs font-bold text-secondary-400 uppercase">Total Withdrawals</p>
+          <p className="text-xl font-bold text-error-600 dark:text-error-400 mt-1">-{formatCurrency(processedData.summary.totalWithdrawals)}</p>
+        </Card>
+        <Card className="p-5 md:col-span-1 border border-secondary-200 dark:border-secondary-800 text-center">
+          <div className="w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/40 flex items-center justify-center mx-auto mb-2 text-accent-700 dark:text-accent-300">
+            <Layers className="w-5 h-5" />
+          </div>
+          <p className="text-xs font-bold text-secondary-400 uppercase">Ending Balance</p>
+          <p className="text-xl font-bold text-primary-900 dark:text-white mt-1">{formatCurrency(processedData.summary.closingBalance)}</p>
         </Card>
       </div>
+
+      <Card className="overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-primary-50 dark:bg-primary-900/30">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Post Date</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-secondary-500 uppercase">Description</th>
+              <th className="px-4 py-3 text-right text-xs font-bold text-secondary-500 uppercase">Credits</th>
+              <th className="px-4 py-3 text-right text-xs font-bold text-secondary-500 uppercase">Debits</th>
+              <th className="px-4 py-3 text-right text-xs font-bold text-secondary-500 uppercase">Running Balance</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-secondary-200 dark:divide-secondary-800">
+            {processedData.filteredTxs.map((tx) => (
+              <tr key={tx.id} className="hover:bg-secondary-50 dark:hover:bg-secondary-800/30">
+                <td className="px-4 py-3 text-sm">{formatDate(tx.date)}</td>
+                <td className="px-4 py-3 text-sm text-primary-900 dark:text-white font-medium">{tx.description}</td>
+                <td className="px-4 py-3 text-sm text-right text-success-600 font-bold">{tx.type === 'credit' ? `+${formatCurrency(tx.amount)}` : ''}</td>
+                <td className="px-4 py-3 text-sm text-right text-error-600 font-bold">{tx.type === 'debit' ? `-${formatCurrency(tx.amount)}` : ''}</td>
+                <td className="px-4 py-3 text-sm text-right text-secondary-600 font-semibold">{formatCurrency(tx.running_balance)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {processedData.filteredTxs.length === 0 && (
+          <div className="p-8 text-center text-secondary-500 font-medium">No transactions reported for the selected account during this statement cycle.</div>
+        )}
+      </Card>
     </div>
   );
 }

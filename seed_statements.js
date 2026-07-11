@@ -67,6 +67,8 @@ async function seed() {
         const merchant = isCredit ? 'Payroll Deposit' : merchants[Math.floor(Math.random() * merchants.length)];
         
         transactionsToInsert.push({
+          id: `tx-${acc.id}-${m}-${i}-${Math.floor(Math.random() * 1000000)}`,
+          customer_id: acc.customer_id,
           account_id: acc.id,
           date: date.toISOString().split('T')[0],
           description: merchant,

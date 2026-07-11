@@ -8,7 +8,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { siteConfig } from '../../config/siteConfig';
+import { useWebsite } from '../../context/WebsiteContext';
 
 const fadeUp = {
   initial: { opacity: 0, y: 30 },
@@ -17,15 +17,16 @@ const fadeUp = {
   transition: { duration: 0.5 },
 };
 
-const contactCards = [
-  { icon: Phone, label: 'Phone', value: siteConfig.contact.phone, sub: '24/7 Customer Support' },
-  { icon: Mail, label: 'Email', value: siteConfig.contact.email, sub: 'We reply within 24 hours' },
-  { icon: MapPin, label: 'Address', value: siteConfig.contact.address, sub: 'New York, NY' },
-];
-
 export function ContactPage() {
+  const { settings: siteConfig } = useWebsite();
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
+
+  const contactCards = [
+    { icon: Phone, label: 'Phone', value: siteConfig.contact.phone, sub: '24/7 Customer Support' },
+    { icon: Mail, label: 'Email', value: siteConfig.contact.email, sub: 'We reply within 24 hours' },
+    { icon: MapPin, label: 'Address', value: siteConfig.contact.address, sub: 'New York, NY' },
+  ];
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

@@ -7,7 +7,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { LinkButton } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { siteConfig } from '../../config/siteConfig';
+import { useWebsite } from '../../context/WebsiteContext';
 
 const fadeUp = {
   initial: { opacity: 0, y: 30 },
@@ -31,6 +31,7 @@ const leaders = [
 ];
 
 export function AboutPage() {
+  const { settings: siteConfig } = useWebsite();
   return (
     <>
       <PageHeader
