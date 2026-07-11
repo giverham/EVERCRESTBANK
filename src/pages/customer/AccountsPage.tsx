@@ -62,7 +62,7 @@ export function AccountsPage() {
         {accounts.map((acc, i) => {
           const isHidden = hidden[acc.id];
           const accTx = transactions.filter(t => t.account_id === acc.id).slice(0, 3);
-          const { current, pending, available } = calculateAccountBalances(acc.id, transactions);
+          const { current, pending, available } = calculateAccountBalances(acc, transactions);
           
           return (
             <motion.div key={acc.id} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.1 }}>

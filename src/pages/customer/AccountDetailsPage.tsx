@@ -18,7 +18,7 @@ export function AccountDetailsPage() {
 
   if (!account) return <div className="p-8 text-center text-secondary-500">Loading account details...</div>;
 
-  const { current, pending, available } = calculateAccountBalances(account.id, transactions);
+  const { current, pending, available } = calculateAccountBalances(account, transactions);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">

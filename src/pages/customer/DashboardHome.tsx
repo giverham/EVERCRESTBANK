@@ -90,7 +90,7 @@ export function DashboardHome() {
       {/* Account Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {accounts.map((acc, i) => {
-          const { current, pending, available } = calculateAccountBalances(acc.id, transactions);
+          const { current, pending, available } = calculateAccountBalances(acc, transactions);
           return (
           <motion.div key={acc.id} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.1 }}>
             <Card className="p-6 h-full">
