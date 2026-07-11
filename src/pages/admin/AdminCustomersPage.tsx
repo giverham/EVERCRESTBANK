@@ -41,7 +41,7 @@ export function AdminCustomersPage() {
   });
 
   const handleDelete = async (customer: any) => {
-    if (customer.email === 'admin@evercrestbank.com' || customer.email === 'customer@evercrestbank.com') {
+    if (customer.id === '22222222-2222-2222-2222-222222222222' || customer.id === '11111111-1111-1111-1111-111111111111') {
       alert('Protected system account. This account cannot be deleted.');
       return;
     }

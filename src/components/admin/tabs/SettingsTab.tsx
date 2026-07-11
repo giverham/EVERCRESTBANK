@@ -108,7 +108,7 @@ export function SettingsTab({ customerId }: { customerId: string }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-premium"
-              placeholder="customer@evercrestbank.com"
+              placeholder="customer@example.com"
             />
           </div>
 
