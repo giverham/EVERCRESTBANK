@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Settings, ShieldCheck, Mail, Key, Save, Check, Building2, Lock, Clock, Eye, EyeOff, Copy,
+  Settings, ShieldCheck, Mail, Key, Save, Check, Building2, Lock, Clock, Eye, EyeOff, Copy, FileText,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useTheme } from '../../context/ThemeContext';
 import { siteConfig } from '../../config/siteConfig';
+import { useWebsite } from '../../context/WebsiteContext';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -19,6 +20,8 @@ const labelClass = 'block text-sm font-medium text-secondary-700 dark:text-secon
 
 export function AdminSettingsPage() {
   const { theme, toggleMode } = useTheme();
+  const { settings, updateSettings } = useWebsite();
+
   const [bankName, setBankName] = useState(siteConfig.bankName);
   const [tagline, setTagline] = useState(siteConfig.tagline);
   const [foundedYear, setFoundedYear] = useState('1987');
@@ -32,8 +35,30 @@ export function AdminSettingsPage() {
   const [showPass, setShowPass] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
+  // Footer Settings State
+  const [copyrightLine, setCopyrightLine] = useState('');
+  const [fdicDisclaimerLine, setFdicDisclaimerLine] = useState('');
+  const [depositInsuranceLine, setDepositInsuranceLine] = useState('');
+
+  useEffect(() => {
+    if (settings) {
+      setBankName(settings.bankName || '');
+      setTagline(settings.tagline || '');
+      setCopyrightLine(settings.copyrightLine || '');
+      setFdicDisclaimerLine(settings.fdicDisclaimerLine || '');
+      setDepositInsuranceLine(settings.depositInsuranceLine || '');
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
     setSaved(true);
+    await updateSettings({
+      bankName,
+      tagline,
+      copyrightLine,
+      fdicDisclaimerLine,
+      depositInsuranceLine,
+    });
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -147,6 +172,48 @@ export function AdminSettingsPage() {
                 </div>
               ))}
               <Badge variant="success" className="mt-2"><ShieldCheck className="w-3.5 h-3.5" /> All keys are valid</Badge>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Footer Settings */}
+        <motion.div {...fadeUp} transition={{ duration: 0.4, delay: 0.22 }}>
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="w-5 h-5 text-primary-600" />
+              <h3 className="text-lg font-bold text-primary-900 dark:text-white">Footer Settings</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className={labelClass}>Copyright Line</label>
+                <input
+                  type="text"
+                  className="input-premium"
+                  value={copyrightLine}
+                  onChange={(e) => setCopyrightLine(e.target.value)}
+                  placeholder="e.g. © 2026 Evercrest Bank. All rights reserved."
+                />
+              </div>
+              <div>
+                <label className={labelClass}>FDIC / Disclaimer Line</label>
+                <input
+                  type="text"
+                  className="input-premium"
+                  value={fdicDisclaimerLine}
+                  onChange={(e) => setFdicDisclaimerLine(e.target.value)}
+                  placeholder="e.g. Member FDIC. This is a fictional demo platform."
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Deposit Insurance Line</label>
+                <input
+                  type="text"
+                  className="input-premium"
+                  value={depositInsuranceLine}
+                  onChange={(e) => setDepositInsuranceLine(e.target.value)}
+                  placeholder="e.g. Deposits insured up to the maximum allowable amount."
+                />
+              </div>
             </div>
           </Card>
         </motion.div>

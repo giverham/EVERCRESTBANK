@@ -108,10 +108,10 @@ export function Footer() {
 
         <div className="border-t border-primary-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-secondary-500">
-            © {year} {siteConfig.bankName}. All rights reserved. Member FDIC. This is a fictional demo platform.
+            {siteConfig.copyrightLine} {siteConfig.fdicDisclaimerLine}
           </p>
           <p className="text-xs text-secondary-500">
-            Deposits insured up to the maximum allowable amount.
+            {siteConfig.depositInsuranceLine}
           </p>
         </div>
       </div>

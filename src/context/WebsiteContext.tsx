@@ -176,6 +176,11 @@ export function WebsiteProvider({ children }: { children: React.ReactNode }) {
           ogImage: dbSettings.og_image_url || updatedConfig.seo.ogImage,
           twitterCard: dbSettings.twitter_image_url || updatedConfig.seo.twitterCard,
         };
+
+        // Merge footer settings
+        updatedConfig.copyrightLine = dbSettings.copyright || updatedConfig.copyrightLine;
+        updatedConfig.fdicDisclaimerLine = dbSettings.fdic_disclaimer || updatedConfig.fdicDisclaimerLine;
+        updatedConfig.depositInsuranceLine = dbSettings.demo_disclaimer || updatedConfig.depositInsuranceLine;
       }
 
       // Merge sections from cms_sections if present
@@ -254,6 +259,10 @@ export function WebsiteProvider({ children }: { children: React.ReactNode }) {
         if (newFields.seo.ogImage) dbFields.og_image_url = newFields.seo.ogImage;
         if (newFields.seo.twitterCard) dbFields.twitter_image_url = newFields.seo.twitterCard;
       }
+
+      if (newFields.copyrightLine !== undefined) dbFields.copyright = newFields.copyrightLine;
+      if (newFields.fdicDisclaimerLine !== undefined) dbFields.fdic_disclaimer = newFields.fdicDisclaimerLine;
+      if (newFields.depositInsuranceLine !== undefined) dbFields.demo_disclaimer = newFields.depositInsuranceLine;
 
       const { error } = await supabaseAdmin
         .from('website_settings')

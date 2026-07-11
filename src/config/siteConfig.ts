@@ -116,11 +116,14 @@ export interface SiteConfig {
   openAccountMessage: {
     title: string;
     body: string;
-  phone: string;
+    phone: string;
     email: string;
     address: string;
     hours: string;
   };
+  copyrightLine?: string;
+  fdicDisclaimerLine?: string;
+  depositInsuranceLine?: string;
 }
 
 export const siteConfig: SiteConfig = {
@@ -129,6 +132,9 @@ export const siteConfig: SiteConfig = {
   logoUrl: '/favicon.svg',
   faviconUrl: '/favicon.svg',
   homepageUrl: '/',
+  copyrightLine: '© 2026 Evercrest Bank. All rights reserved.',
+  fdicDisclaimerLine: 'Member FDIC. This is a fictional demo platform.',
+  depositInsuranceLine: 'Deposits insured up to the maximum allowable amount.',
 
   heroBanner: {
     title: 'Banking Built on Trust',
