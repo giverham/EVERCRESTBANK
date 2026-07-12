@@ -6,9 +6,9 @@ import {
 } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { formatCurrency, formatTransactionDate } from '../../data/demoData';
+import { formatCurrency, formatTransactionDate } from '../../utils/formatters';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
-import type { Account, Transaction } from '../../data/demoData';
+import type { Account, Transaction } from '../../types/banking';
 import { calculateAccountBalances } from '../../utils/calculations';
 
 const fadeUp = {

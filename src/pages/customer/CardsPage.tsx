@@ -4,7 +4,8 @@ import { Snowflake, Eye, EyeOff, AlertTriangle, Plus, CreditCard as CardIcon } f
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { formatCurrency, type CardInfo } from '../../data/demoData';
+import { formatCurrency } from '../../utils/formatters';
+import type { CardInfo } from '../../types/banking';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { supabaseCustomer as supabase } from '../../lib/supabase';
 

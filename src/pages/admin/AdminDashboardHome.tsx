@@ -62,7 +62,7 @@ export function AdminDashboardHome() {
         query: 'SELECT SUM(current_balance) as sum FROM public.accounts' 
       }).maybeSingle();
 
-      const totalAssets = balanceSum?.sum || 124500.50; // fallback if rpc is not exposed
+      const totalAssets = (balanceSum as any)?.sum || 124500.50; // fallback if rpc is not exposed
 
       const { data: depositsSum } = await supabase.rpc('execute_sql', {
         query: "SELECT SUM(amount) as sum FROM public.transactions WHERE type='credit' AND status='completed'"
@@ -79,8 +79,8 @@ export function AdminDashboardHome() {
           if (row.id === 'total_accounts') finalVal = accountsCount || 3;
           if (row.id === 'total_assets') finalVal = Number(totalAssets);
           if (row.id === 'credit_cards') finalVal = cardsCount || 2;
-          if (row.id === 'deposits') finalVal = Number(depositsSum?.sum || 84300.00);
-          if (row.id === 'withdrawals') finalVal = Number(withdrawalsSum?.sum || 21400.00);
+          if (row.id === 'deposits') finalVal = Number((depositsSum as any)?.sum || 84300.00);
+          if (row.id === 'withdrawals') finalVal = Number((withdrawalsSum as any)?.sum || 21400.00);
           if (row.id === 'active_users') finalVal = customersCount || 1;
         }
         calculated.push({

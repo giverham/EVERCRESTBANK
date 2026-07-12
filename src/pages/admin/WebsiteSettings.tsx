@@ -70,7 +70,7 @@ export default function WebsiteSettings() {
 
       setHeroTitle(settings.heroBanner?.title || '');
       setHeroSubtitle(settings.heroBanner?.subtitle || '');
-      setHeroCta(settings.heroBanner?.primaryCtaText || '');
+      setHeroCta(settings.heroBanner?.ctaPrimary || '');
     }
   }, [settings]);
 

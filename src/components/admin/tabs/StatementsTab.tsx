@@ -3,7 +3,7 @@ import { supabaseAdmin as supabase } from '../../../lib/supabase';
 import { Card } from '../../ui/Card';
 import { Button } from '../../ui/Button';
 import { Download, Layers } from 'lucide-react';
-import { formatCurrency } from '../../../data/demoData';
+import { formatCurrency } from '../../../utils/formatters';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -14,6 +14,7 @@ interface Account {
   routing: string;
   current_balance?: number;
   available_balance?: number;
+  type?: string;
 }
 
 interface Transaction {
@@ -26,6 +27,7 @@ interface Transaction {
   type: 'debit' | 'credit';
   status: string;
   merchant?: string;
+  running_balance?: number;
 }
 
 export function StatementsTab({ customerId }: { customerId: string }) {
@@ -142,7 +144,7 @@ export function StatementsTab({ customerId }: { customerId: string }) {
     const totalDeposits = filtered.filter(tx => tx.type === 'credit').reduce((sum, tx) => sum + Number(tx.amount), 0);
     const totalWithdrawals = filtered.filter(tx => tx.type === 'debit').reduce((sum, tx) => sum + Number(tx.amount), 0);
 
-    let openingBalance = filtered.length > 0 ? filtered[filtered.length - 1].running_balance - (filtered[filtered.length - 1].type === 'credit' ? filtered[filtered.length - 1].amount : -filtered[filtered.length - 1].amount) : workingBalance;
+    let openingBalance = filtered.length > 0 ? (filtered[filtered.length - 1].running_balance || 0) - (filtered[filtered.length - 1].type === 'credit' ? filtered[filtered.length - 1].amount : -filtered[filtered.length - 1].amount) : workingBalance;
     let closingBalance = workingBalance;
 
     return {
@@ -285,7 +287,7 @@ export function StatementsTab({ customerId }: { customerId: string }) {
       tx.description,
       tx.type === 'credit' ? `+${formatCurrency(tx.amount)}` : '',
       tx.type === 'debit' ? `-${formatCurrency(tx.amount)}` : '',
-      formatCurrency(tx.running_balance)
+      formatCurrency(tx.running_balance || 0)
     ]).reverse();
 
     // Convert hex color to RGB
@@ -300,7 +302,7 @@ export function StatementsTab({ customerId }: { customerId: string }) {
       head: [['Post Date', 'Description', 'Deposits/Credits', 'Withdrawals/Debits', 'Ending Balance']],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: hexToRgb(brandingSettings.themeColor), textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+      headStyles: { fillColor: hexToRgb(brandingSettings.themeColor) as [number, number, number], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       styles: { fontSize: 8, cellPadding: 3.5, textColor: [51, 65, 85] },
       columnStyles: {
@@ -423,7 +425,7 @@ export function StatementsTab({ customerId }: { customerId: string }) {
                 <td className="px-4 py-3 text-sm text-primary-900 dark:text-white font-medium">{tx.description}</td>
                 <td className="px-4 py-3 text-sm text-right text-success-600 font-bold">{tx.type === 'credit' ? `+${formatCurrency(tx.amount)}` : ''}</td>
                 <td className="px-4 py-3 text-sm text-right text-error-600 font-bold">{tx.type === 'debit' ? `-${formatCurrency(tx.amount)}` : ''}</td>
-                <td className="px-4 py-3 text-sm text-right text-secondary-600 font-semibold">{formatCurrency(tx.running_balance)}</td>
+                <td className="px-4 py-3 text-sm text-right text-secondary-600 font-semibold">{formatCurrency(tx.running_balance || 0)}</td>
               </tr>
             ))}
           </tbody>

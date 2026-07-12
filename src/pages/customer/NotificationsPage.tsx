@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { supabaseCustomer as supabase } from '../../lib/supabase';
-import type { NotificationItem } from '../../data/demoData';
+import type { NotificationItem } from '../../types/banking';
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },

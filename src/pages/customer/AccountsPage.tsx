@@ -5,7 +5,8 @@ import { Eye, EyeOff, Plus, ArrowUpRight, ArrowDownRight, MessageSquare, X, Buil
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { formatCurrency, type Account, type Transaction } from '../../data/demoData';
+import { formatCurrency } from '../../utils/formatters';
+import type { Account, Transaction } from '../../types/banking';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { calculateAccountBalances } from '../../utils/calculations';
 

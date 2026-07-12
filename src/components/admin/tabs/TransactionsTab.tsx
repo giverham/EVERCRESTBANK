@@ -3,7 +3,7 @@ import { supabaseAdmin as supabase } from "../../../lib/supabase";
 import { Card } from "../../ui/Card";
 import { Button } from "../../ui/Button";
 import { Plus, Check, Loader2 } from "lucide-react";
-import { formatCurrency, formatTransactionDate } from "../../../data/demoData";
+import { formatCurrency, formatTransactionDate } from "../../../utils/formatters";
 
 export function TransactionsTab({ customerId }: { customerId: string }) {
   const [transactions, setTransactions] = useState<any[]>([]);

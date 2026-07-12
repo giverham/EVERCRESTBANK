@@ -94,8 +94,8 @@ export function ImageUploader({ value, onChange, label, className = '' }: ImageU
   };
 
   const handleClipboardPaste = (e: ClipboardEvent) => {
-    if (e.clipboardData && e.dataTransfer?.files[0]) {
-       handleFile(e.dataTransfer.files[0]);
+    if (e.clipboardData && e.clipboardData.files[0]) {
+       handleFile(e.clipboardData.files[0]);
     }
   };
 

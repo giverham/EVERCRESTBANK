@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Download, FileText, Layers } from 'lucide-react';
 import { Card, SectionHeading } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { formatCurrency } from '../../data/demoData';
+import { formatCurrency } from '../../utils/formatters';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { supabaseCustomer as supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +17,7 @@ interface Account {
   routing: string;
   current_balance?: number;
   available_balance?: number;
+  type?: string;
 }
 
 interface Transaction {
@@ -357,7 +358,7 @@ export function StatementsPage() {
       head: [['Post Date', 'Description', 'Deposits/Credits', 'Withdrawals/Debits', 'Ending Balance']],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: hexToRgb(brandingSettings.themeColor), textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+      headStyles: { fillColor: hexToRgb(brandingSettings.themeColor) as [number, number, number], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       styles: { fontSize: 8, cellPadding: 3.5, textColor: [51, 65, 85] },
       columnStyles: {

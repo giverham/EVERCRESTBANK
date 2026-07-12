@@ -1,4 +1,4 @@
-import type { Transaction } from '../data/demoData';
+import type { Transaction } from '../types/banking';
 
 export function calculateAccountBalances(account: any, transactions?: Transaction[]) {
   if (!account) {

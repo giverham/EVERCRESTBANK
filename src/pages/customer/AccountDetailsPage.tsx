@@ -1,10 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
-import type { Account, Transaction } from '../../data/demoData';
+import type { Account, Transaction } from '../../types/banking';
 import { calculateAccountBalances } from '../../utils/calculations';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { formatCurrency, formatTransactionDate } from '../../data/demoData';
+import { formatCurrency, formatTransactionDate } from '../../utils/formatters';
 import { ArrowLeft, Send, Download, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 
